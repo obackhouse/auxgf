@@ -2,7 +2,7 @@ auxgf
 =====
 
 The auxgf package implements Green's function methods for problems in molecular quantum chemistry using auxiliary space representations, written in Python.
-Methods are built as extensions to the existing functionality of the `PySCF` package.
+Methods are built as extensions to the existing functionality of the PySCF package.
 
 Requirements
 ------------
