@@ -29,7 +29,17 @@ se_imfq = se.as_spectrum(imfq)
 se_refq = se.as_spectrum(refq)
 assert np.allclose(se_imfq, se_imfq_ref)
 assert np.allclose(se_refq, se_refq_ref)
-del se_refq, se_imfq_ref, se_refq_ref, refq
+del se_refq, se_imfq_ref, se_refq_ref
+
+imfq = grids.ImFqGrid(2**8, beta=2**5)
+refq = grids.ReFqGrid(2**8, eta=0.1, minpt=-5, maxpt=5)
+dse_imfq_ref = -np.einsum('xk,yk,wk->wxy', v, v, 1.0 / util.outer_sum([1.0j * imfq, -(e-cpt)])**2)
+dse_refq_ref = -np.einsum('xk,yk,wk->wxy', v, v, 1.0 / util.outer_sum([refq, -(e-cpt) + np.sign(e-cpt) * 1j * refq.eta])**2)
+dse_imfq = se.as_derivative(imfq)
+dse_refq = se.as_derivative(refq)
+assert np.allclose(dse_imfq, dse_imfq_ref)
+assert np.allclose(dse_refq, dse_refq_ref)
+del dse_refq, dse_imfq, dse_imfq_ref, dse_refq_ref, refq
 
 ham_ref = np.block([[h, v], [v.T, np.diag(e)]])
 ham = se.as_hamiltonian(h)

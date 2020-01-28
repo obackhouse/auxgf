@@ -57,8 +57,14 @@ class Aux:
         spectral function
     build_spectrum(grid, e, v, chempot=0.0, ordering='feynman')
         static method to build a spectral function
+    build_denominator(grid, e, v, chempot=0.0, ordering='feynman')
+        static method to build a derivative of the spectral function
+        with respect to frequency
     as_spectrum(grid, ordering='feynman')
         express the spectral function as a frequency-dependent matrix
+    as_derivative(grid, ordering='feynman')
+        express the derivative of a spectral function as a frequency-
+        dependent matrix
     as_hamiltonian(h_phys, chempot=0.0)
         expresses the auxiliaries as a matrix in the 'extened Fock'
         formalism
@@ -103,8 +109,10 @@ class Aux:
         attributes
     '''
 
+
     def __init__(self, e, v, **kwargs):
         self._setup(e, v, **kwargs)
+
 
     def _setup(self, e, v, **kwargs):
         self._ener = np.asarray(e, dtype=types.float64)
@@ -114,6 +122,7 @@ class Aux:
 
         for item in kwargs.items():
             setattr(self, *item)
+
 
     @staticmethod
     def build_denominator(grid, e, v, chempot=0.0, ordering='feynman'):
@@ -156,6 +165,7 @@ class Aux:
         denom = 1.0 / denom
 
         return denom
+
 
     @staticmethod
     def build_spectrum(grid, e, v, chempot=0.0, ordering='feynman'):
@@ -207,6 +217,56 @@ class Aux:
 
         return sf
 
+
+    @staticmethod
+    def build_derivative(grid, e, v, chempot=0.0, ordering='feynman'):
+        ''' Builds the derivative of the spectrum with respect to
+            frequency on a frequency grid using the auxiliaries.
+
+        Parameters
+        ----------
+        grid : (n) ImFqGrid, ImFqQuad or ReFqGrid
+            grid object
+        e : (m) ndarray
+            auxiliary energies
+        v : (k,m) ndarray
+            auxiliary couplings
+        chempot : float, optional
+            chemical potential
+        ordering : str
+            ordering of the poles {'feynman', 'advanced', 'retarded'}
+            (default 'feynman')
+
+        Returns
+        -------
+        dsf : (n,m,m) ndarray
+            derivative of spectrum expressed on `grid`
+        '''
+
+        es = e - chempot
+        freq = grid.prefac * grid.values
+        nphys = v.shape[0]
+
+        if ordering == 'feynman':
+            s = np.sign(es)
+        elif ordering == 'advanced':
+            s = np.ones(es.shape, dtype=types.int64)
+        elif ordering == 'retarded':
+            s = -np.ones(es.shape, dtype=types.int64)
+        else:
+            raise ValueError
+
+        es = es - s * grid.eta * 1.0j
+
+        dsf = np.zeros((grid.size, nphys, nphys), dtype=types.complex128)
+
+        for i,w in enumerate(freq):
+            denom = 1.0 / (w - es) ** 2
+            dsf[i] = -util.einsum('xk,yk,k->xy', v, v, denom)
+
+        return dsf
+
+
     def as_spectrum(self, grid, ordering='feynman'):
         ''' Expresses the poles as the spectrum on a frequency grid.
 
@@ -226,6 +286,29 @@ class Aux:
 
         return self.build_spectrum(grid, self.e, self.v, chempot=self.chempot, 
                                    ordering=ordering)
+
+
+    def as_derivative(self, grid, ordering='feynman'):
+        ''' Expresses the poles as a derivative of the spectrum with
+            respect to frequency on a frequency grid.
+
+        Parameters
+        ----------
+        grid : (n) ImFqGrid, ImFqQuad or ReFqGrid
+            grid object
+        ordering : str
+            ordering of the poles {'feynman', 'advanced', 'retarded'}
+            (default 'feynman')
+
+        Returns
+        -------
+        dsf : (n,m,m) ndarray
+            derivative of spectrum expressed on `grid`
+        '''
+
+        return self.build_derivative(grid, self.e, self.v, chempot=self.chempot,
+                                     ordering=ordering)
+
 
     def as_hamiltonian(self, h_phys, chempot=0.0):
         ''' Expresses the auxiliaries as an extended Hamiltonian.
@@ -259,6 +342,7 @@ class Aux:
 
         return h_ext
 
+
     def as_occupied(self):
         ''' Returns a new Aux object with only the occupied auxiliaries.
 
@@ -276,6 +360,7 @@ class Aux:
         occ._coup = occ.v[:,mask]
 
         return occ
+
 
     def as_virtual(self):
         ''' Returns a new Aux object with only the virtual auxiliaries.
@@ -295,6 +380,7 @@ class Aux:
 
         return vir
 
+
     def as_window(self, e_min, e_max):
         ''' Returns a new Aux object with only the auxiliaries between
             an energy window [e_min, e_max).
@@ -313,6 +399,7 @@ class Aux:
         aux._coup = aux.v[:,mask]
 
         return aux
+
 
     def dot(self, h_phys, vec):
         ''' Dot-product of `self.as_hamiltonian(h_phys)` with `vec`,
@@ -358,6 +445,7 @@ class Aux:
 
         return out.reshape(input_shape)
 
+
     def eig(self, h_phys, chempot=0.0):
         ''' Diagonalises `self.as_hamiltonian(h_phys)`.
 
@@ -395,6 +483,7 @@ class Aux:
 
         return w, v
 
+
     def moment(self, n):
         ''' Builds the nth moment of the spectral distribution.
 
@@ -416,6 +505,7 @@ class Aux:
 
         return np.squeeze(moms)
 
+
     def merge(self, etol=1e-10, wtol=1e-10):
         ''' Performs an in-principle exact reduction of the auxiliaries
             which have linear dependencies or negligible weight.
@@ -434,6 +524,7 @@ class Aux:
         '''
 
         return merge.aux_merge_exact(self, etol=etol, wtol=wtol)
+
 
     def se_compress(self, h_phys, nmom):
         ''' Compresses the auxiliaries via the associated self-energy.
@@ -456,6 +547,7 @@ class Aux:
 
         return red
 
+
     def gf_compress(self, h_phys, nmom):
         ''' Compresses the auxiliaries via the associated Green's 
             function. Compression is performed out-of-place.
@@ -476,6 +568,7 @@ class Aux:
         red = gftrunc.run(self, h_phys, nmom)
 
         return red
+
 
     def compress(self, h_phys, nmom):
         ''' Compresses the auxiliaries via the hybird algorithm.
@@ -512,6 +605,7 @@ class Aux:
 
         return red
 
+
     def fit(self, target, grid, hessian=True, opts={}, test_grad=False, test_hess=False):
         ''' Runs the auxiliary fitting procedure. 
 
@@ -528,6 +622,7 @@ class Aux:
         aux_fit, res = fit.run(self, target, grid, **kwargs)
 
         return aux_fit
+
 
     def sort(self, which='e'):
         ''' Sorts the auxiliaries by their energies, weights or both.
@@ -551,6 +646,7 @@ class Aux:
         self._ener = self._ener[mask]
         self._coup = self._coup[:,mask]
 
+
     def copy(self):
         ''' Returns a copy of the Aux object.
 
@@ -570,12 +666,14 @@ class Aux:
 
     __copy__ = copy
 
+
     def save(self, filename):
         ''' Saves the object using pickle.
         '''
 
         with open(filename, 'wb') as f:
             pickle.dump(self.__dict__, f)
+
 
     @classmethod
     def load(cls, filename):
@@ -597,6 +695,7 @@ class Aux:
 
         return aux
 
+
     def memsize(self):
         ''' Returns an approximate size of the object.
 
@@ -610,6 +709,7 @@ class Aux:
         size = types.float64(bits) / 1e9
 
         return size
+
 
     def new(self, e, v):
         ''' Returns a new Aux object with different energies and
@@ -640,6 +740,7 @@ class Aux:
         aux._coup = v
 
         return aux
+
 
     def __add__(self, other):
         ''' Combines two Aux objects. All non-combined attributes
@@ -679,6 +780,7 @@ class Aux:
 
         return aux
 
+
     def __eq__(self, other):
         ''' Checks if the Aux objects represent the same spectrum.
 
@@ -699,6 +801,7 @@ class Aux:
         sf2 = other.as_spectrum(grid)
 
         return np.allclose(sf1, sf2)
+
 
     @property
     def e(self):
@@ -751,3 +854,4 @@ class Aux:
     @property
     def nvir(self):
         return self.v_vir.shape[1]
+
