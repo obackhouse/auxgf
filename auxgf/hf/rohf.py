@@ -30,13 +30,16 @@ class ROHF(hf.HF):
     '''
 
     def __init__(self, mol, **kwargs):
+        raise NotImplementedError
+        #TODO Fock build
+
         kwargs['method'] = scf.ROHF
         super().__init__(mol, **kwargs)
 
-    spin_square = uhf.UHF.spin_square
-    chempot = uhf.UHF.chempot
-    get_fock = uhf.UHF.get_fock
-    energy_1body = uhf.UHF.energy_1body
+    spin_square = property(uhf.UHF.spin_square)
+    chempot = property(uhf.UHF.chempot)
+    get_fock = staticmethod(uhf.UHF.get_fock)
+    energy_1body = staticmethod(uhf.UHF.energy_1body)
 
     @classmethod
     def from_pyscf(cls, hf):

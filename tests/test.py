@@ -8,7 +8,7 @@ warnings.simplefilter('ignore', FutureWarning)
 modules = OrderedDict([
     ('util', ['ao2mo', 'linalg']),
     ('mol', ['mol']),
-    ('hf', ['rhf', 'uhf', 'rohf']),
+    ('hf', ['rhf', 'uhf']),
     ('mp', ['mp2', 'oomp2']),
     ('cc', ['ccsd']),
     ('aux', ['aux', 'build', 'energy']),
@@ -19,6 +19,7 @@ sys.stdout.write('%12s %6s %6s\n' % ('module', 'time', 'status'))
 sys.stdout.write('%12s %6s %6s\n' % ('-'*12, '-'*6, '-'*6))
 
 passed = True
+init_time = time.time()
 
 for module,files in modules.items():
     for f in files:
@@ -33,4 +34,6 @@ for module,files in modules.items():
 
 if not passed:
     sys.stdout.write('Some tests failed, run individual files to see errors\n')
+
+sys.stdout.write('Runtime: %6.4f s\n' % (time.time() - init_time))
 

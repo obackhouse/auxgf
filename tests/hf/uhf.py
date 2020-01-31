@@ -12,3 +12,4 @@ uhf3 = hf.UHF(mol1, disable_omp=False)
 uhf4 = hf.UHF(mol1, check_stability=False)
 
 assert np.allclose(uhf1.e_tot, [uhf2.e_tot, uhf3.e_tot, uhf4.e_tot])
+assert np.allclose(uhf1.get_fock(dm=uhf2.rdm1_ao), uhf2.get_fock(uhf2.h1e_ao, uhf2.rdm1_ao, uhf2.eri_ao))

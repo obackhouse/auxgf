@@ -3,6 +3,7 @@
 
 import numpy as np
 from pyscf import scf, lib
+from pyscf import __version__ as pyscf_version
 
 from auxgf import util
 from auxgf.util import log
@@ -70,21 +71,65 @@ class UHF(hf.HF):
 
         n = h1e.shape[-1]
 
-        if h1e.ndim == 2 or h1e.shape == (1, n, n):
+        eri = np.asarray(eri)
+        h1e = np.asarray(h1e)
+        rdm1 = np.asarray(rdm1)
+
+        #if h1e.ndim == 2 or h1e.shape == (1, n, n):
+        #    h1e = np.stack((h1e.reshape((n, n)),)*2, axis=0)
+
+        #if rdm1.ndim == 2 or rdm1.shape == (1, n, n):
+        #    rdm1 = np.stack((rdm1.reshape((n, n)),)*2, axis=0)
+        # 
+        #if eri.ndim == 4 or eri.shape == (1, n, n, n, n) or \
+        #        eri.shape == (1, 1, n, n, n, n):
+        #    eri = np.stack((eri.reshape((n, n, n, n)),)*4, axis=0)
+        #    eri = eri.reshape((2, 2, n, n, n, n))
+        #elif eri.shape == (4, n, n, n, n):
+        #    eri = eri.reshape((2, 2, n, n, n, n))
+
+        #j = util.einsum('aji,abijkl->bkl', rdm1, eri)
+        #k = util.einsum('aji,ailkj->akl', rdm1, (eri[0,0], eri[1,1]))
+
+        if h1e.reshape((-1, n, n)).shape[0] == 1:
             h1e = np.stack((h1e.reshape((n, n)),)*2, axis=0)
 
-        if rdm1.ndim == 2 or rdm1.shape == (1, n, n):
+        if rdm1.reshape((-1, n, n)).shape[0] == 1:
             rdm1 = np.stack((rdm1.reshape((n, n)),)*2, axis=0)
 
-        if eri.ndim == 4 or eri.shape == (1, n, n, n, n) or \
-                eri.shape == (1, 1, n, n, n, n):
-            eri = np.stack((eri.reshape((n, n, n, n)),)*4, axis=0)
-            eri = eri.reshape((2, 2, n, n, n, n))
-        elif eri.shape == (4, n, n, n, n):
-            eri = eri.reshape((2, 2, n, n, n, n))
+        if eri.ndim == 1 or eri.ndim == 4:
+            eri_aa = eri_ab = eri_ba = eri_bb = eri
+        else:
+            eri = eri.reshape((4, -1))
+            eri_aa = eri[0]
+            eri_ab = eri[1]
+            eri_ba = eri[2]
+            eri_bb = eri[3]
 
-        j = util.einsum('aji,abijkl->bkl', rdm1, eri)
-        k = util.einsum('aji,ailkj->akl', rdm1, (eri[0,0], eri[1,1]))
+        j_aa_ref = util.einsum('ij,ijkl->kl', rdm1[0], eri_aa.reshape((n,n,n,n)))
+        j_bb_ref = util.einsum('ij,ijkl->kl', rdm1[1], eri_bb.reshape((n,n,n,n)))
+        j_ab_ref = util.einsum('ij,ijkl->kl', rdm1[0], eri_ab.reshape((n,n,n,n)))
+        j_ba_ref = util.einsum('ij,ijkl->kl', rdm1[1], eri_ba.reshape((n,n,n,n)))
+        k_aa_ref = util.einsum('ij,ilkj->kl', rdm1[0], eri_aa.reshape((n,n,n,n)))
+        k_bb_ref = util.einsum('ij,ilkj->kl', rdm1[1], eri_bb.reshape((n,n,n,n)))
+
+        eri_aa = util.restore(8, eri_aa, n)
+        eri_ab = util.restore(8, eri_ab, n)
+        eri_ba = util.restore(8, eri_ba, n)
+        eri_bb = util.restore(8, eri_bb, n)
+
+        j_a, k_a = scf.hf._vhf.incore(eri_aa, rdm1[0], hermi=1)
+        j_b, k_b = scf.hf._vhf.incore(eri_bb, rdm1[1], hermi=1)
+
+        if int(pyscf_version[2]) < 7:
+            j_a += scf.hf._vhf.incore(eri_ba, rdm1[1], hermi=1)[0]
+            j_b += scf.hf._vhf.incore(eri_ab, rdm1[0], hermi=1)[0] 
+        else:
+            j_a += scf.hf._vhf.incore(eri_ba, rdm1[1], hermi=1, with_k=False)
+            j_b += scf.hf._vhf.incore(eri_ab, rdm1[0], hermi=1, with_k=False)
+
+        j = np.stack((j_a, j_b), axis=0)
+        k = np.stack((k_a, k_b), axis=0)
 
         fock = h1e + j - k
 

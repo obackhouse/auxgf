@@ -12,3 +12,4 @@ rhf3 = hf.RHF(mol1, disable_omp=False)
 rhf4 = hf.RHF(mol1, check_stability=False)
 
 assert np.allclose(rhf1.e_tot, [rhf2.e_tot, rhf3.e_tot, rhf4.e_tot])
+assert np.allclose(rhf1.get_fock(), rhf2.get_fock(rhf2.h1e_ao, rhf2.rdm1_ao, rhf2.eri_ao))

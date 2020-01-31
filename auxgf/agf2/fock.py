@@ -84,6 +84,8 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     v0 = se.v.copy()
     chempot = se.chempot
     nphys = se.nphys
+    homo = util.amax(e0[e0 < chempot])
+    lumo = util.amin(e0[e0 >= chempot])
 
 
     def _diag_fock_ext(chempot):
@@ -114,11 +116,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
         homo = util.amax(e0[e0 < chempot])
         lumo = util.amin(e0[e0 >= chempot])
 
-        if homo is np.nan:
-            util.log.warn('Could not find a HOMO in Fock loop.')
-        elif lumo is np.nan:
-            util.log.warn('Could not find a LUMO in Fock loop.')
-        else:
+        if not (homo is np.nan or lumo is np.nan):
             res = _minimize(homo, lumo)
             e0 -= res.x
 
@@ -146,11 +144,18 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
         if rmsd < options['dtol'] and abs(error) < options['netol']:
             break
 
+    # TODO these are sometimes flagged but doesn't seem to be a problem...
+    #if homo is np.nan:
+    #    util.log.warn('Could not find a HOMO in Fock loop.')
+    #elif lumo is np.nan:
+    #    util.log.warn('Could not find a LUMO in Fock loop.')
+
     converged = rmsd < options['dtol'] and abs(error) < options['netol']
 
     log.write('%52s\n' % ('-'*52), options['verbose'])
 
-    se = se.new(e0, v0)
+    se = se.new(e0, v0, chempot=chempot)
+    e, c = se.eig(fock)
 
     return se, rdm, converged
 
@@ -212,6 +217,10 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
     v0 = (se[0].v.copy(), se[1].v.copy())
     chempot = (se[0].chempot, se[1].chempot)
     nphys = se[0].nphys
+    homo_a = util.amax(e0[0][e0[0] < chempot[0]])
+    lumo_a = util.amin(e0[0][e0[0] >= chempot[0]])
+    homo_b = util.amax(e0[1][e0[1] < chempot[1]])
+    lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
 
     assert se[0].nphys == se[1].nphys
 
@@ -252,11 +261,8 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
         homo_b = util.amax(e0[1][e0[1] < chempot[1]])
         lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
 
-        if homo_a is np.nan or homo_b is np.nan:
-            util.log.warn('Could not find a HOMO in Fock loop.')
-        elif lumo_a is np.nan or lumo_b is np.nan:
-            util.log.warn('Could not find a LUMO in Fock loop.')
-        else:
+        if not (homo_a is np.nan or homo_b is np.nan 
+                or lumo_a is np.nan or lumo_b is np.nan):
             res_a = _minimize(homo_a, lumo_a, 0)
             res_b = _minimize(homo_b, lumo_b, 1)
             e0 = (e0[0] - res_a.x, e0[1] - res_b.x)
@@ -295,11 +301,17 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
         if rmsd < options['dtol'] and error_max < options['netol']:
             break
 
+    #if homo_a is np.nan or homo_b is np.nan:
+    #    util.log.warn('Could not find a HOMO in Fock loop.')
+    #elif lumo_a is np.nan or lumo_b is np.nan:
+    #    util.log.warn('Could not find a LUMO in Fock loop.')
+
     converged = rmsd < options['dtol'] and error_max < options['netol']
 
     log.write('%52s\n' % ('-'*52), options['verbose'])
 
-    se = (se[0].new(e0[0], v0[0]), se[1].new(e0[1], v0[1]))
+    se = (se[0].new(e0[0], v0[0], chempot=chempot[0]), 
+          se[1].new(e0[1], v0[1], chempot=chempot[1]))
 
     return se, rdm, converged
     

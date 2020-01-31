@@ -64,8 +64,10 @@ class RHF(hf.HF):
             Fock matrix
         '''
 
-        j = util.einsum('ji,ijkl->kl', rdm1, eri)
-        k = util.einsum('ji,ilkj->kl', rdm1, eri)
+        eri = np.asarray(eri)
+        eri = util.restore(8, eri, h1e.shape[0])
+
+        j, k = scf.hf._vhf.incore(eri, rdm1, hermi=1)
 
         fock = h1e + j - 0.5 * k
 

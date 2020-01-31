@@ -711,7 +711,7 @@ class Aux:
         return size
 
 
-    def new(self, e, v):
+    def new(self, e, v, chempot=None):
         ''' Returns a new Aux object with different energies and
             couplings, inheriting all other attributes.
 
@@ -721,6 +721,8 @@ class Aux:
             new energies
         v : (m,n) array
             new couplings
+        chempot : float, optional
+            used as chemical potential instead of inheriting
 
         Returns
         -------
@@ -738,6 +740,9 @@ class Aux:
 
         aux._ener = e
         aux._coup = v
+
+        if chempot is not None:
+            aux.chempot = chempot
 
         return aux
 
