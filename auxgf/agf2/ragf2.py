@@ -260,7 +260,7 @@ class RAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        gf = aux.Aux(*self.se.eig(self.get_fock()))
+        gf = aux.Aux(*self.se.eig(self.get_fock()), chempot=self.chempot)
 
         e2b = aux.energy.energy_2body_aux(gf, self.se)
 
@@ -314,7 +314,7 @@ class RAGF2:
             log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
                       self.iteration, self.verbose)
         else:
-            log.write('\nAuxiliary GF2 failed to converged.\n' % self.verbose)
+            log.write('\nAuxiliary GF2 failed to converged.\n', self.verbose)
 
         self._timings['total'] = self._timings.get('total', 0.0) \
                                  + self._timer.total()

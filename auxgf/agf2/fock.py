@@ -155,7 +155,6 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     log.write('%52s\n' % ('-'*52), options['verbose'])
 
     se = se.new(e0, v0, chempot=chempot)
-    e, c = se.eig(fock)
 
     return se, rdm, converged
 

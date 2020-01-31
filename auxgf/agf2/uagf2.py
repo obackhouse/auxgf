@@ -296,8 +296,10 @@ class UAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        gfa = aux.Aux(*self.se[0].eig(self.get_fock()[0]))
-        gfb = aux.Aux(*self.se[1].eig(self.get_fock()[1]))
+        gfa = aux.Aux(*self.se[0].eig(self.get_fock()[0]), 
+                      chempot=self.chempot[0])
+        gfb = aux.Aux(*self.se[1].eig(self.get_fock()[1]), 
+                      chempot=self.chempot[0])
 
         e2ba = aux.energy.energy_2body_aux(gfa, self.se[0])
         e2bb = aux.energy.energy_2body_aux(gfb, self.se[1])

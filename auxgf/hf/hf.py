@@ -154,7 +154,7 @@ class HF:
 
     @property
     def occ(self):
-        return np.stack(self._pyscf.mo_occ)
+        return np.stack(self._pyscf.mo_occ).astype(types.int32)
 
     @property
     def c(self):
