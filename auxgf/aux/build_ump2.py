@@ -107,7 +107,7 @@ def make_coups_outer(v, s=None, wtol=1e-10):
         return coup, sign
 
 
-def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-10):
+def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for an unrestricted reference, for a particular leading
         index.
@@ -126,6 +126,10 @@ def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-10):
         chosen index i (a)
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
 
     Returns
     -------
@@ -155,8 +159,8 @@ def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-10):
     ea = eo[0][i] + util.outer_sum([eo[0][jm], -ev[0]]).flatten()
     eb = eo[0][i] + util.outer_sum([eo[1], -ev[1]]).flatten()
 
-    va = vija_aaa - vjia_aaa
-    vb = vija_abb
+    va = np.sqrt(ss_factor) * vija_aaa - vjia_aaa
+    vb = np.sqrt(os_factor) * vija_abb
 
     e = np.concatenate((ea, eb), axis=0)
     v = np.concatenate((va, vb), axis=1)
@@ -170,7 +174,7 @@ def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-10):
     return e, v
 
 
-def build_ump2_part(eo, ev, xija, wtol=1e-10):
+def build_ump2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for an unrestricted reference.
 
@@ -186,6 +190,10 @@ def build_ump2_part(eo, ev, xija, wtol=1e-10):
         (aa|bb) [(bb|bb), (bb|aa)] spin
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
 
     Returns
     -------
@@ -205,7 +213,8 @@ def build_ump2_part(eo, ev, xija, wtol=1e-10):
 
     n0 = 0
     for i in range(nocca):
-        ei, vi = build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol)
+        ei, vi = build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol,
+                                       ss_factor=ss_factor, os_factor=os_factor)
         n1 = n0 + ei.shape[0]
 
         e[n0:n1] = ei
@@ -219,7 +228,7 @@ def build_ump2_part(eo, ev, xija, wtol=1e-10):
     return e, v
 
 
-def build_ump2(e, eri, chempot=0.0, wtol=1e-10):
+def build_ump2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference.
 
@@ -234,6 +243,10 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-10):
         chemical potential for alpha, beta (beta, alpha) spin
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
     
     Returns
     -------
@@ -249,8 +262,10 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-10):
 
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    eija, vija = build_ump2_part(eo, ev, xija, wtol=wtol)
-    eabi, vabi = build_ump2_part(ev, eo, xabi, wtol=wtol)
+    eija, vija = build_ump2_part(eo, ev, xija, wtol=wtol,
+                                 ss_factor=ss_factor, os_factor=os_factor)
+    eabi, vabi = build_ump2_part(ev, eo, xabi, wtol=wtol,
+                                 ss_factor=ss_factor, os_factor=os_factor)
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -260,7 +275,7 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-10):
     return poles
 
 
-def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-10):
+def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -280,6 +295,10 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-10):
         indices are spin indices for the bra and ket
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
 
     Returns
     -------
@@ -310,25 +329,29 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-10):
     xija_aaaa = util.mo2qo(eri_mo[0,0], co[0], co[0], cv[0])
     xija_aabb = util.mo2qo(eri_mo[0,1], co[0], co[1], cv[1])
     xija = (xija_aaaa, xija_aabb)
-    eija_a, vija_a = build_ump2_part(eo, ev, xija, wtol=wtol)
+    eija_a, vija_a = build_ump2_part(eo, ev, xija, wtol=wtol,
+                                     ss_factor=ss_factor, os_factor=os_factor)
     del xija
 
     xija_bbbb = util.mo2qo(eri_mo[0,0], co[1], co[1], cv[1])
     xija_bbaa = util.mo2qo(eri_mo[1,0], co[1], co[0], cv[0])
     xija = (xija_bbbb, xija_bbaa)
-    eija_b, vija_b = build_ump2_part(eo[::-1], ev[::-1], xija, wtol=wtol)
+    eija_b, vija_b = build_ump2_part(eo[::-1], ev[::-1], xija, wtol=wtol,
+                                     ss_factor=ss_factor, os_factor=os_factor)
     del xija
 
     xabi_aaaa = util.mo2qo(eri_mo[0,0], cv[0], cv[0], co[0])
     xabi_aabb = util.mo2qo(eri_mo[0,1], cv[0], cv[1], co[1])
     xabi = (xabi_aaaa, xabi_aabb)
-    eabi_a, vabi_a = build_ump2_part(ev, eo, xabi, wtol=wtol)
+    eabi_a, vabi_a = build_ump2_part(ev, eo, xabi, wtol=wtol,
+                                     ss_factor=ss_factor, os_factor=os_factor)
     del xabi
 
     xabi_bbbb = util.mo2qo(eri_mo[0,0], cv[1], cv[1], co[1])
     xabi_bbaa = util.mo2qo(eri_mo[1,0], cv[1], cv[0], co[0])
     xabi = (xabi_bbbb, xabi_bbaa)
-    eabi_b, vabi_b = build_ump2_part(ev[::-1], eo[::-1], xabi, wtol=wtol)
+    eabi_b, vabi_b = build_ump2_part(ev[::-1], eo[::-1], xabi, wtol=wtol,
+                                     ss_factor=ss_factor, os_factor=os_factor)
     del xabi
 
     ea = np.concatenate((eija_a, eabi_a), axis=0)
@@ -342,7 +365,7 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-10):
     return poles_a, poles_b
 
 
-def build_ump2_part_direct(eo, ev, xija, wtol=1e-10):
+def build_ump2_part_direct(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for an unrestricted reference. Uses a generator which
         iterates over blocks.
@@ -359,6 +382,10 @@ def build_ump2_part_direct(eo, ev, xija, wtol=1e-10):
         (aa|bb) [(bb|bb), (bb|aa)] spin
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
 
     Yields
     ------
@@ -371,10 +398,11 @@ def build_ump2_part_direct(eo, ev, xija, wtol=1e-10):
     nphys, nocca, _, nvira = xija[0].shape
 
     for i in range(nocca):
-        yield build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol)
+        yield build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol,
+                                    ss_factor=ss_factor, os_factor=os_factor)
 
 
-def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-10):
+def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference. Uses a generator which
         iterates over blocks.
@@ -390,6 +418,10 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-10):
         chemical potential for alpha, beta (beta, alpha) spin
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, default 1.0
     
     Yields
     ------
@@ -405,8 +437,10 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-10):
     
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    yield from build_ump2_part_direct(eo, ev, xija, wtol=wtol)
-    yield from build_ump2_part_direct(ev, eo, xabi, wtol=wtol)
+    yield from build_ump2_part_direct(eo, ev, xija, wtol=wtol,
+                                      ss_factor=ss_factor, os_factor=os_factor)
+    yield from build_ump2_part_direct(ev, eo, xabi, wtol=wtol,
+                                      ss_factor=ss_factor, os_factor=os_factor)
 
 
 def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman'):

@@ -100,7 +100,7 @@ def make_coups_outer(v, s=None, wtol=1e-10):
         return coup, sign
 
 
-def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10):
+def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference, for a particular leading
         index.
@@ -118,6 +118,10 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10):
         chosen index i (a)
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
 
     Returns
     -------
@@ -146,8 +150,11 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10):
     eb = ea
     ec = 2 * eo[i] - ev
 
-    va = (0.5 * np.sqrt(6.0)) * (vija - vjia)
-    vb = (0.5 * np.sqrt(2.0)) * (vija + vjia)
+    pos_factor = 0.5 * os_factor
+    neg_factor = ss_factor + pos_factor
+
+    va = np.sqrt(neg_factor) * (vija - vjia)
+    vb = np.sqrt(pos_factor) * (vija + vjia)
     vc = viia
 
     e = np.concatenate((ea, eb, ec), axis=0)
@@ -162,7 +169,7 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10):
     return e, v
 
 
-def build_rmp2_part(eo, ev, xija, wtol=1e-10):
+def build_rmp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference.
 
@@ -177,6 +184,10 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-10):
         virtual (physical, virtual, virtual, occupied)
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
 
     Returns
     -------
@@ -194,7 +205,8 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-10):
 
     n0 = 0
     for i in range(nocc):
-        ei, vi = build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol)
+        ei, vi = build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol, 
+                                       ss_factor=ss_factor, os_factor=os_factor)
         n1 = n0 + ei.shape[0]
 
         e[n0:n1] = ei
@@ -208,7 +220,7 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-10):
     return e, v
 
 
-def build_rmp2(e, eri, chempot=0.0, wtol=1e-10):
+def build_rmp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference.
 
@@ -223,6 +235,10 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-10):
         chemical potential
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
     
     Returns
     -------
@@ -232,8 +248,10 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-10):
 
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
 
-    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol)
-    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol)
+    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol, 
+                                 ss_factor=ss_factor, os_factor=os_factor)
+    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol, 
+                                 ss_factor=ss_factor, os_factor=os_factor)
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -243,7 +261,7 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-10):
     return poles
 
 
-def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10):
+def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -258,6 +276,10 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10):
         two-electron repulsion integrals in MO basis
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
 
     Returns
     -------
@@ -276,11 +298,13 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10):
     cv = c[:aux.nphys,v]
 
     xija = util.mo2qo(eri_mo, co, co, cv)
-    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol)
+    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol,
+                                 ss_factor=ss_factor, os_factor=os_factor)
     del xija
 
     xabi = util.mo2qo(eri_mo, cv, cv, co)
-    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol)
+    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol,
+                                 ss_factor=ss_factor, os_factor=os_factor)
     del xabi
 
     e = np.concatenate((eija, eabi), axis=0)
@@ -291,7 +315,7 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10):
     return poles
 
 
-def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10):
+def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -307,6 +331,10 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10):
         virtual (physical, virtual, virtual, occupied)
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
 
     Yields
     ------
@@ -319,10 +347,11 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10):
     nphys, nocc, _, nvir = xija.shape
 
     for i in range(nocc):
-        yield build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol)
+        yield build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol,
+                                    ss_factor=ss_factor, os_factor=os_factor)
 
 
-def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-10):
+def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -338,6 +367,10 @@ def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-10):
         chemical potential
     wtol : float, optional
         threshold for an eigenvalue to be considered zero
+    ss_factor : float, optional
+        same spin factor, default 1.0
+    os_factor : float, optional
+        opposite spin factor, deafult 1.0
     
     Yields
     ------
@@ -347,8 +380,10 @@ def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-10):
     
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
 
-    yield from build_rmp2_part_direct(eo, ev, xija, wtol=wtol)
-    yield from build_rmp2_part_direct(ev, eo, xabi, wtol=wtol)
+    yield from build_rmp2_part_direct(eo, ev, xija, wtol=wtol,
+                                      ss_factor=ss_factor, os_factor=os_factor)
+    yield from build_rmp2_part_direct(ev, eo, xabi, wtol=wtol,
+                                      ss_factor=ss_factor, os_factor=os_factor)
 
 
 def build_rmp2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman'):

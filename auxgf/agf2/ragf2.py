@@ -22,6 +22,8 @@ def _set_options(**kwargs):
                 'diis_space' : 8,
                 'fock_maxiter' : 50,
                 'fock_maxruns' : 20,
+                'ss_factor' : 1.0,
+                'os_factor' : 1.0,
     }
 
     for key,val in kwargs.items():
@@ -36,6 +38,12 @@ def _set_options(**kwargs):
         'maxiter' : options['fock_maxiter'],
         'maxruns' : options['fock_maxruns'],
         'verbose' : options['verbose'],
+    }
+
+    options['_build'] = {
+        'wtol' : options['wtol'],
+        'ss_factor' : options['ss_factor'],
+        'os_factor' : options['os_factor'],
     }
 
     return options
@@ -77,6 +85,10 @@ class RAGF2:
         maximum number of inner Fock loop iterations, default 50
     fock_maxruns : int, optional
         maximum number of outer Fock loop iterations, default 20
+    ss_factor : float, optional
+        same spin factor for auxiliary build, default 1.0
+    os_factor : float, optional
+        opposite spin factor for auxiliary build, default 1.0
 
     Attributes
     ----------
@@ -165,7 +177,7 @@ class RAGF2:
         self._se_prev = self.se.copy()
 
         self.se = aux.build_rmp2_iter(self.se, self.get_fock(), self.eri,
-                                      wtol=self.options['wtol'])
+                                      **self.options['_build'])
         
         self.se.merge(etol=self.options['etol'], wtol=self.options['wtol'])
 
