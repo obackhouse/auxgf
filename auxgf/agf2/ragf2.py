@@ -24,7 +24,7 @@ def _set_options(**kwargs):
                 'fock_maxruns' : 20,
                 'ss_factor' : 1.0,
                 'os_factor' : 1.0,
-                'use_merge' : True,
+                'use_merge' : False,
     }
 
     for key,val in kwargs.items():
@@ -92,7 +92,7 @@ class RAGF2:
         opposite spin factor for auxiliary build, default 1.0
     use_merge : bool, optional
         if True, perform the exact degeneracy-based merge, default
-        True
+        False
 
     Attributes
     ----------
