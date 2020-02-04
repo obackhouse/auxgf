@@ -58,7 +58,7 @@ def options(opts, verbose=1):
     max_size = max([len(x) for x in opts.keys()])
     if verbose:
         for item in sorted(opts.items()):
-            if '_' in item[0] and item[0][0] != '_':
+            if item[0][0] != '_':
                 write(('%-' + str(max_size) + 's : %-16s\n') % item)
 
 
