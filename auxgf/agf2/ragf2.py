@@ -24,6 +24,7 @@ def _set_options(**kwargs):
                 'fock_maxruns' : 20,
                 'ss_factor' : 1.0,
                 'os_factor' : 1.0,
+                'use_merge' : True,
     }
 
     for key,val in kwargs.items():
@@ -89,6 +90,9 @@ class RAGF2:
         same spin factor for auxiliary build, default 1.0
     os_factor : float, optional
         opposite spin factor for auxiliary build, default 1.0
+    use_merge : bool, optional
+        if True, perform the exact degeneracy-based merge, default
+        True
 
     Attributes
     ----------
@@ -179,7 +183,9 @@ class RAGF2:
         self.se = aux.build_rmp2_iter(self.se, self.get_fock(), self.eri,
                                       **self.options['_build'])
         
-        self.se.merge(etol=self.options['etol'], wtol=self.options['wtol'])
+        if self.options['use_merge']:
+            self.se = self.se.merge(etol=self.options['etol'], 
+                                    wtol=self.options['wtol'])
 
         log.write('naux (build) = %d\n' % self.naux, self.verbose)
 
@@ -213,12 +219,19 @@ class RAGF2:
 
     @util.record_time('merge')
     def merge(self):
+        # Performs the exact merge of degenerate states - in some
+        # cases this may be slower?
+
         nmom_gf, nmom_se = self.nmom
 
         if nmom_gf is None and nmom_se is None:
             return
 
         self.se = self.se.compress(self.get_fock(), self.nmom)
+
+        if self.options['use_merge']:
+            self.se = self.se.merge(etol=self.options['etol'],
+                                    wtol=self.options['wtol'])
 
         log.write('naux (merge) = %d\n' % self.naux, self.verbose)
 

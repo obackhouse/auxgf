@@ -24,6 +24,7 @@ def _set_options(**kwargs):
                 'fock_maxruns' : 20,
                 'ss_factor' : 1.0,
                 'os_factor' : 1.0,
+                'use_merge' : True,
     }
 
     for key,val in kwargs.items():
@@ -89,6 +90,9 @@ class UAGF2:
         same spin factor for auxiliary build, default 1.0
     os_factor : float, optional
         opposite spin factor for auxiliary build, default 1.0
+    use_merge : bool, optional
+        if True, perform the exact degeneracy-based merge, default
+        True
 
     Attributes
     ----------
@@ -185,8 +189,11 @@ class UAGF2:
         sea, seb = aux.build_ump2_iter(self.se, self.get_fock(), self.eri,
                                        **self.options['_build'])
 
-        sea.merge(etol=self.options['etol'], wtol=self.options['wtol'])
-        seb.merge(etol=self.options['etol'], wtol=self.options['wtol'])
+        if self.options['use_merge']:
+            sea = sea.merge(etol=self.options['etol'], 
+                            wtol=self.options['wtol'])
+            seb = seb.merge(etol=self.options['etol'], 
+                            wtol=self.options['wtol'])
 
         self.se = (sea, seb)
 
@@ -240,6 +247,12 @@ class UAGF2:
 
         sea = self.se[0].compress(self.get_fock()[0], self.nmom)
         seb = self.se[1].compress(self.get_fock()[1], self.nmom)
+
+        if self.options['use_merge']:
+            sea = sea.merge(etol=self.options['etol'],
+                            wtol=self.options['wtol'])
+            seb = seb.merge(etol=self.options['etol'],
+                            wtol=self.options['wtol'])
 
         self.se = (sea, seb)
 

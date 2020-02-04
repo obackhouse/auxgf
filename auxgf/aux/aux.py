@@ -410,12 +410,12 @@ class Aux:
         ----------
         h_phys : (n,n) ndarray
             physical Hamiltonian
-        vec : (n,...) ndarray
+        vec : (m,...) ndarray
             vector
 
         Returns
         -------
-        out : (n,...) ndarray
+        out : (m,...) ndarray
             result of dot-product
 
         Raises
@@ -437,11 +437,11 @@ class Aux:
 
         out = np.zeros((vec.shape), dtype=types.float64)
 
-        out[sp,:]  = np.dot(h_phys, vec[sp,:])
-        out[sp,:] += np.dot(self.v, vec[sa,:])
-
-        out[sa,:]  = np.dot(self.v.T, vec[sp,:])
-        out[sa,:] += np.einsum('i,ij->ij', self.e, vec[sa,:])
+        out[sp]  = np.dot(h_phys, vec[sp])
+        out[sp] += np.dot(self.v, vec[sa])
+        
+        out[sa]  = np.dot(vec[sp].T, self.v).T
+        out[sa] += self.e[:,None] * vec[sa]
 
         return out.reshape(input_shape)
 
