@@ -2,10 +2,13 @@
 '''
 
 import numpy as np
-from pyscf.ao2mo import restore
-from pyscf import lib
+from pyscf import lib as _pyscf_lib
+from pyscf import ao2mo as _pyscf_ao2mo
 
 from auxgf.util import einsum, types
+
+
+restore = _pyscf_ao2mo.restore
 
 
 def ao2mo_2d(array, c_a, c_b): 
@@ -55,7 +58,7 @@ def ao2mo_4d(array, c_a, c_b, c_c, c_d):
         transformed array
     '''
 
-    trans = lib.einsum('pqrs,pi,qj,rk,sl->ijkl', array, c_a, c_b, c_c, c_d)
+    trans = _pyscf_lib.einsum('pqrs,pi,qj,rk,sl->ijkl', array, c_a, c_b, c_c, c_d)
 
     return trans
 
@@ -163,7 +166,43 @@ def mo2qo_4d(array, c_a, c_b, c_c):
         transformed array
     '''
 
-    trans = lib.einsum('pqrs,qi,rj,sk->pijk', array, c_a, c_b, c_c)
+    #trans = _pyscf_lib.einsum('pqrs,qi,rj,sk->pijk', array, c_a, c_b, c_c)
+
+    p, q, r, s = array.shape
+    i = c_a.shape[-1]
+    j = c_b.shape[-1]
+    a = c_c.shape[-1]
+
+    if a > i:
+        # p,q,r,s -> pqs,r
+        trans = array.swapaxes(2,3).reshape(p*q*s, r)
+        # pqs,r -> pqs,j
+        trans = np.dot(trans, c_b)
+        # pqs,j -> sjp,q
+        trans = trans.reshape(p*q, s*j).T.reshape(s*j*p, q)
+        # sjp,q -> sjp,i
+        trans = np.dot(trans, c_a)
+        # sjp,i -> pij,s
+        trans = trans.reshape(s*j, p*i).T.reshape(p*i, s, j).swapaxes(1,2).reshape(p*i*j, s)
+        # pij,s -> pij,a
+        trans = np.dot(trans, c_c)
+        # pij,a -> p,i,j,a
+        trans = trans.reshape(p, i, j, a)
+    else:
+        # p,q,r,s -> pqr,s
+        trans = array.reshape(p*q*r, s)
+        # pqr,s -> pqr,a
+        trans = np.dot(trans, c_c)
+        # pqr,a -> pqa,r
+        trans = trans.reshape(p*q, r, a).swapaxes(1,2).reshape(p*q*a, r)
+        # pqa,r -> pqa,j
+        trans = np.dot(trans, c_b)
+        # pqa,j -> ajp,q
+        trans = trans.reshape(p*q, a*j).T.reshape(a*j*p, q)
+        # ajp,q -> ajp,i
+        trans = np.dot(trans, c_a)
+        # ajp,i -> p,i,j,a
+        trans = trans.reshape(a*j, p*i).T.reshape(p, i, a, j).swapaxes(2,3)
 
     return trans
 
