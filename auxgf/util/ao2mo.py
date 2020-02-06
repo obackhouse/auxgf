@@ -166,7 +166,7 @@ def mo2qo_4d(array, c_a, c_b, c_c):
         transformed array
     '''
 
-    #trans = _pyscf_lib.einsum('pqrs,qi,rj,sk->pijk', array, c_a, c_b, c_c)
+    #return _pyscf_lib.einsum('pqrs,qi,rj,sk->pijk', array, c_a, c_b, c_c)
 
     p, q, r, s = array.shape
     i = c_a.shape[-1]
@@ -204,7 +204,7 @@ def mo2qo_4d(array, c_a, c_b, c_c):
         # ajp,i -> p,i,j,a
         trans = trans.reshape(a*j, p*i).T.reshape(p, i, a, j).swapaxes(2,3)
 
-    return trans
+    return np.ascontiguousarray(trans)
 
 mo2qo = mo2qo_4d
 
