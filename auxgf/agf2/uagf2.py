@@ -382,7 +382,7 @@ class UAGF2:
             log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
                       self.iteration, self.verbose)
         else:
-            log.write('\nAuxiliary GF2 failed to converge.\n' % self.verbose)
+            log.write('\nAuxiliary GF2 failed to converge.\n', self.verbose)
 
         self._timings['total'] = self._timings.get('total', 0.0) \
                                  + self._timer.total()

@@ -9,18 +9,35 @@ from auxgf.util import types
 
 
 def _parse_uhf(e, eri, chempot):
-    oa = e[0] < chempot[0]
-    ob = e[1] < chempot[1]
-    va = e[0] >= chempot[0]
-    vb = e[1] >= chempot[1]
+    if not (np.all(np.diff(e[0]) >= 0) and np.all(np.diff(e[1])) >= 0):
+        # See auxgf.aux.build.rmp2._parse_rhf
 
-    eo = (e[0][oa], e[1][ob])
-    ev = (e[0][va], e[1][vb])
+        oa = e[0] < chempot[0]
+        va = e[0] >= chempot[0]
+        ob = e[1] < chempot[1]
+        vb = e[1] >= chempot[1]
 
-    xija_aaaa = eri[0][:,:,:,va][:,:,oa][:,oa]
-    xija_aabb = eri[1][:,:,:,vb][:,:,ob][:,oa]
-    xabi_aaaa = eri[0][:,:,:,oa][:,:,va][:,va]
-    xabi_aabb = eri[1][:,:,:,ob][:,:,vb][:,va]
+        eo = (e[0][oa], e[1][ob])
+        ev = (e[0][va], e[1][vb])
+
+        xija_aaaa = eri[0][:,:,:,va][:,:,oa][:,oa]
+        xija_aabb = eri[1][:,:,:,vb][:,:,ob][:,oa]
+        xabi_aaaa = eri[0][:,:,:,oa][:,:,va][:,va]
+        xabi_aabb = eri[1][:,:,:,ob][:,:,vb][:,va]
+
+    else:
+        oa = slice(None, np.sum(e[0] < chempot[0]))
+        va = slice(np.sum(e[0] < chempot[0]), None)
+        ob = slice(None, np.sum(e[1] < chempot[1]))
+        vb = slice(np.sum(e[1] < chempot[1]), None)
+
+        eo = (e[0][oa], e[1][ob])
+        ev = (e[0][va], e[1][vb])
+
+        xija_aaaa = eri[0][:,oa,oa,va]
+        xija_aabb = eri[1][:,oa,ob,vb]
+        xabi_aaaa = eri[0][:,va,va,oa]
+        xabi_aabb = eri[1][:,va,vb,ob]
 
     xija = (xija_aaaa, xija_aabb)
     xabi = (xabi_aaaa, xabi_aabb)

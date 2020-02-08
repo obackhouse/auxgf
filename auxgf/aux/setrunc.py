@@ -2,6 +2,7 @@
 '''
 
 import numpy as np
+import scipy.linalg
 
 from auxgf import util
 from auxgf.util import types
@@ -104,7 +105,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         if kwargs.get('reorthog', True):
             r -= util.dots([v[-1], v[-1].T, r])
 
-        vnext, b[j] = util.qr(r)
+        vnext, b[j] = util.qr(r, mode='reduced')
 
         if not keep_v:
             v = [v[-1], vnext]

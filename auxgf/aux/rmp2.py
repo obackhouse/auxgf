@@ -9,14 +9,29 @@ from auxgf.util import types
 
 
 def _parse_rhf(e, eri, chempot):
-    o = e < chempot
-    v = e >= chempot
+    if not np.all(np.diff(e) >= 0):
+        # Masking is slower but necessary if energies aren't sorted -
+        # they typically should be sorted though and could require it
+        # in the future?
 
-    eo = e[o]
-    ev = e[v]
+        o = e < chempot
+        v = e >= chempot
 
-    xija = eri[:,:,:,v][:,:,o][:,o]
-    xabi = eri[:,:,:,o][:,:,v][:,v]
+        eo = e[o]
+        ev = e[v]
+
+        xija = eri[:,:,:,v][:,:,o][:,o]
+        xabi = eri[:,:,:,o][:,:,v][:,v]
+
+    else:
+        o = slice(None, np.sum(e < chempot))
+        v = slice(np.sum(e < chempot), None)
+
+        eo = e[o]
+        ev = e[v]
+
+        xija = eri[:,o,o,v]
+        xabi = eri[:,v,v,o]
 
     return eo, ev, xija, xabi
 

@@ -13,6 +13,7 @@ from auxgf.agf2.fock import fock_loop_rhf
 def _set_options(**kwargs):
     options = { 'nmom' : (3,4),
                 'dm0' : None,
+                'frozen' : 0,
                 'verbose' : True,
                 'maxiter' : 50,
                 'etol' : 1e-6,

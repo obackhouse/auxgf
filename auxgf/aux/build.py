@@ -4,8 +4,8 @@
 import numpy as np
 
 
-from auxgf.aux.build_rmp2 import *
-from auxgf.aux.build_ump2 import *
+from auxgf.aux.rmp2 import *
+from auxgf.aux.ump2 import *
 
 
 def build_mp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
