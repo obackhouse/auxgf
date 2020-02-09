@@ -357,7 +357,7 @@ class Aux:
         mask = self.e < self.chempot
 
         occ._ener = occ.e[mask]
-        occ._coup = occ.v[:,mask]
+        occ._coup = np.ascontiguousarray(occ.v[:,mask])
 
         return occ
 
@@ -376,7 +376,7 @@ class Aux:
         mask = self.e >= self.chempot
 
         vir._ener = vir.e[mask]
-        vir._coup = vir.v[:,mask]
+        vir._coup = np.ascontiguousarray(vir.v[:,mask])
 
         return vir
 
@@ -396,7 +396,7 @@ class Aux:
         aux = self.copy()
 
         aux._ener = aux.e[mask]
-        aux._coup = aux.v[:,mask]
+        aux._coup = np.ascontiguousarray(aux.v[:,mask])
 
         return aux
 
@@ -644,7 +644,7 @@ class Aux:
             mask = np.lexsort((self.e, self.w))
 
         self._ener = self._ener[mask]
-        self._coup = self._coup[:,mask]
+        self._coup = np.ascontiguousarray(self._coup[:,mask])
 
 
     def copy(self):
@@ -731,7 +731,7 @@ class Aux:
         '''
 
         e = np.asarray(e, dtype=types.float64)
-        v = np.asarray(v, dtype=types.float64)
+        v = np.ascontiguousarray(v, dtype=types.float64)
 
         aux = Aux(None, None)
 
@@ -781,7 +781,7 @@ class Aux:
             setattr(aux, *item)
 
         aux._ener = e
-        aux._coup = v
+        aux._coup = np.ascontiguousarray(v)
 
         return aux
 
