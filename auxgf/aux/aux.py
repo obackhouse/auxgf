@@ -116,7 +116,7 @@ class Aux:
 
     def _setup(self, e, v, **kwargs):
         self._ener = np.asarray(e, dtype=types.float64)
-        self._coup = np.asarray(v, dtype=types.float64)
+        self._coup = np.ascontiguousarray(v, dtype=types.float64)
 
         self.chempot = 0.0
 
