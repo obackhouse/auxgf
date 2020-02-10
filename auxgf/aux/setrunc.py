@@ -93,7 +93,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
     b = np.zeros((nblock, nphys, nphys), dtype=types.float64)
 
     v.append(np.eye(nqmo, nphys))
-    u = aux.dot(h_phys, v[0])
+    u = np.ascontiguousarray(np.block([h_phys, aux.v]).T)
 
     if kwargs.get('debug', False):
         assert np.allclose(np.dot(v[0].T, v[0]), np.eye(nphys))
@@ -103,7 +103,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         r = u - np.dot(v[-1], m[j])
 
         if kwargs.get('reorthog', True):
-            r -= util.dots([v[-1], v[-1].T, r])
+            r -= np.dot(v[-1], np.dot(v[-1].T, r))
 
         vnext, b[j] = util.qr(r, mode='reduced')
 
