@@ -15,6 +15,7 @@ def _set_options(**kwargs):
                 'verbose': True,
                 'maxiter': 50,
                 'maxruns': 20,
+                'frozen': 0,
     }
 
     for key,val in kwargs.items():
@@ -46,7 +47,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     eri : (n,n,n,n) ndarray
         two-electron repulsion integrals
     nelec : int
-        number of electrons
+        total number of electrons (including frozen)
     diis_space : int, optional  
         size of DIIS space, default 8
     netol : int, optional
@@ -87,11 +88,15 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     homo = util.amax(e0[e0 < chempot])
     lumo = util.amin(e0[e0 >= chempot])
 
+    frozen = options['frozen']
+    act = slice(frozen, None)
+    nelec_act = nelec - (frozen * 2)
+
 
     def _diag_fock_ext(chempot):
-        _fock_ext = _get_fock_ext(fock, e0, v0, chempot)
+        _fock_ext = _get_fock_ext(fock[act,act], e0, v0, chempot)
         _w, _v = util.eigh(_fock_ext)
-        _chempot, _error = util.find_chempot(nphys, nelec, h=(_w, _v))
+        _chempot, _error = util.find_chempot(nphys, nelec_act, h=(_w, _v))
         return _w, _v, _chempot, _error
 
     def _obj(x):
@@ -121,11 +126,11 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
             e0 -= res.x
 
         for niter in range(1, options['maxiter']+1):
-            fock_ext = _get_fock_ext(fock, e0, v0, 0.0)
+            fock_ext = _get_fock_ext(fock[act,act], e0, v0, 0.0)
             w, v, chempot, error = _diag_fock_ext(0.0)
 
             c_occ = v[:nphys, w < chempot]
-            rdm = np.dot(c_occ, c_occ.T) * 2
+            rdm[act,act] = np.dot(c_occ, c_occ.T) * 2
             fock = hf.rhf.RHF.get_fock(h1e, rdm, eri)
 
             if niter > 1:

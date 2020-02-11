@@ -39,6 +39,7 @@ def _set_options(**kwargs):
         'diis_space' : options['diis_space'],
         'maxiter' : options['fock_maxiter'],
         'maxruns' : options['fock_maxruns'],
+        'frozen' : options['frozen'],
         'verbose' : options['verbose'],
     }
 
@@ -49,6 +50,16 @@ def _set_options(**kwargs):
     }
 
     return options
+
+
+def _active(ragf2, arr):
+    ''' Returns the active space of an n-dimensional array.
+    '''
+
+    act = slice(ragf2.options['frozen'], None)
+    act = (act,)*arr.ndim
+
+    return arr[act]
 
 
 class RAGF2:
@@ -65,6 +76,8 @@ class RAGF2:
     dm0 : (n,n) ndarray, optional
         initial density matrix, if None, use rhf.rdm1_mo, default
         None
+    frozen : int, optional
+        number of frozen core orbitals, default 0
     verbose : bool, optional
         if True, print output log, default True
     maxiter : int, optional
@@ -158,7 +171,10 @@ class RAGF2:
         self.converged = False
         self.iteration = 0
 
-        self.se = aux.Aux([], [[],]*self.hf.nao, chempot=self.hf.chempot)
+        nact = self.hf.nao - self.options['frozen']
+        self.se = aux.Aux(np.empty((0), dtype=types.float64),
+                          np.empty((nact, 0), dtype=types.float64),
+                          chempot=self.hf.chempot)
         self._se_prev = None
 
         self._timings = {}
@@ -172,6 +188,7 @@ class RAGF2:
         log.write('E(nuc) = %.12f\n' % self.hf.e_nuc, self.verbose)
         log.write('E(hf)  = %.12f\n' % self.hf.e_tot, self.verbose)
         log.write('nao = %d\n' % self.hf.nao, self.verbose)
+        log.write('nfrozen = %d\n' % self.options['frozen'], self.verbose)
         log.write('nmom = (%s, %s)\n' % self.nmom, self.verbose)
 
         self.run_mp2()
@@ -180,9 +197,15 @@ class RAGF2:
     @util.record_time('build')
     def build(self):
         self._se_prev = self.se.copy()
+        eri = _active(self, self.eri)
 
-        self.se = aux.build_rmp2_iter(self.se, self.get_fock(), self.eri,
-                                      **self.options['_build'])
+        if self.iteration:
+            fock = _active(self, self.get_fock())
+            self.se = aux.build_rmp2_iter(self.se, fock, eri,
+                                          **self.options['_build'])
+        else:
+            e = _active(self, self.hf.e)
+            self.se = aux.build_rmp2(e, eri, **self.options['_build'])
         
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'], 
@@ -206,7 +229,7 @@ class RAGF2:
             log.write('Chemical potential = %.6f\n' % self.chempot,
                       self.verbose)
 
-        e_qmo = util.eigvalsh(se.as_hamiltonian(self.h1e))
+        e_qmo = util.eigvalsh(se.as_hamiltonian(_active(self, self.h1e)))
 
         self.se = se
         self.rdm1 = rdm1
@@ -228,7 +251,7 @@ class RAGF2:
         if nmom_gf is None and nmom_se is None:
             return
 
-        self.se = self.se.compress(self.get_fock(), self.nmom)
+        self.se = self.se.compress(_active(self, self.get_fock()), self.nmom)
 
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'],
@@ -261,13 +284,15 @@ class RAGF2:
         if rdm1 is None:
             rdm1 = self.rdm1
 
-        return self.hf.get_fock(self.h1e, rdm1, self.eri)
+        fock = self.hf.get_fock(self.h1e, rdm1, self.eri)
+
+        return fock
 
 
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
-        emp2 = aux.energy.energy_mp2_aux(self.hf.e, self.se)
+        emp2 = aux.energy.energy_mp2_aux(_active(self, self.hf.e), self.se)
 
         log.write('E(mp2) = %.12f\n' % emp2, self.verbose)
 
@@ -286,7 +311,8 @@ class RAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        gf = aux.Aux(*self.se.eig(self.get_fock()), chempot=self.chempot)
+        fock = _active(self, self.get_fock())
+        gf = aux.Aux(*self.se.eig(fock), chempot=self.chempot)
 
         e2b = aux.energy.energy_2body_aux(gf, self.se)
 
@@ -364,7 +390,7 @@ class RAGF2:
 
     @property
     def nphys(self):
-        return self.hf.nao
+        return self.se.nphys
 
     @property
     def naux(self):
