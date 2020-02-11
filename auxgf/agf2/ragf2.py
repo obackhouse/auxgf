@@ -56,8 +56,12 @@ def _active(ragf2, arr):
     ''' Returns the active space of an n-dimensional array.
     '''
 
-    act = slice(ragf2.options['frozen'], None)
-    act = (act,)*arr.ndim
+    frozen = ragf2.options['frozen']
+
+    if not frozen:
+        return arr
+
+    act = (slice(frozen, None),)*arr.ndim
 
     return arr[act]
 
@@ -172,9 +176,7 @@ class RAGF2:
         self.iteration = 0
 
         nact = self.hf.nao - self.options['frozen']
-        self.se = aux.Aux(np.empty((0), dtype=types.float64),
-                          np.empty((nact, 0), dtype=types.float64),
-                          chempot=self.hf.chempot)
+        self.se = aux.Aux([], [[],]*nact, chempot=self.hf.chempot)
         self._se_prev = None
 
         self._timings = {}
@@ -197,15 +199,15 @@ class RAGF2:
     @util.record_time('build')
     def build(self):
         self._se_prev = self.se.copy()
-        eri = _active(self, self.eri)
+        eri_act = _active(self, self.eri)
 
         if self.iteration:
-            fock = _active(self, self.get_fock())
-            self.se = aux.build_rmp2_iter(self.se, fock, eri,
+            fock_act = _active(self, self.get_fock())
+            self.se = aux.build_rmp2_iter(self.se, fock_act, eri_act,
                                           **self.options['_build'])
         else:
-            e = _active(self, self.hf.e)
-            self.se = aux.build_rmp2(e, eri, **self.options['_build'])
+            e_act = _active(self, self.hf.e)
+            self.se = aux.build_rmp2(e_act, eri_act, **self.options['_build'])
         
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'], 
@@ -311,8 +313,8 @@ class RAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        fock = _active(self, self.get_fock())
-        gf = aux.Aux(*self.se.eig(fock), chempot=self.chempot)
+        fock_act = _active(self, self.get_fock())
+        gf = aux.Aux(*self.se.eig(fock_act), chempot=self.chempot)
 
         e2b = aux.energy.energy_2body_aux(gf, self.se)
 

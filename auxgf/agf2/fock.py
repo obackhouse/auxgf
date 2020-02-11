@@ -126,7 +126,6 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
             e0 -= res.x
 
         for niter in range(1, options['maxiter']+1):
-            fock_ext = _get_fock_ext(fock[act,act], e0, v0, 0.0)
             w, v, chempot, error = _diag_fock_ext(0.0)
 
             c_occ = v[:nphys, w < chempot]
@@ -226,13 +225,15 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
     homo_b = util.amax(e0[1][e0[1] < chempot[1]])
     lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
 
-    assert se[0].nphys == se[1].nphys
+    frozen = options['frozen']
+    act = slice(frozen, None)
+    nelec_act = (nelec[0] - frozen, nelec[1] - frozen)
 
 
     def _diag_fock_ext(chempot, ab):
-        _fock_ext = _get_fock_ext(fock[ab], e0[ab], v0[ab], chempot)
+        _fock_ext = _get_fock_ext(fock[ab][act,act], e0[ab], v0[ab], chempot)
         _w, _v = util.eigh(_fock_ext)
-        _chempot, _error = util.find_chempot(nphys, nelec[ab], h=(_w, _v),
+        _chempot, _error = util.find_chempot(nphys, nelec_act[ab], h=(_w, _v),
                                              occupancy=1.0)
         return _w, _v, _chempot, _error
 
@@ -283,7 +284,7 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
 
             rdm_a = np.dot(c_occ_a, c_occ_a.T)
             rdm_b = np.dot(c_occ_b, c_occ_b.T)
-            rdm = np.stack((rdm_a, rdm_b))
+            rdm[:,act,act] = np.stack((rdm_a, rdm_b))
 
             fock = hf.uhf.UHF.get_fock(h1e, rdm, eri)
 

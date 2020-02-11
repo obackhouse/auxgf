@@ -13,6 +13,7 @@ from auxgf.agf2.fock import fock_loop_uhf
 def _set_options(**kwargs):
     options = { 'nmom' : (3,4),
                 'dm0' : None,
+                'frozen' : 0,
                 'verbose' : True,
                 'maxiter' : 50,
                 'etol' : 1e-6,
@@ -38,6 +39,7 @@ def _set_options(**kwargs):
         'diis_space' : options['diis_space'],
         'maxiter' : options['fock_maxiter'],
         'maxruns' : options['fock_maxruns'],
+        'frozen' : options['frozen'],
         'verbose' : options['verbose'],
     }
 
@@ -48,6 +50,23 @@ def _set_options(**kwargs):
     }
 
     return options
+
+
+def _active(uagf2, arr):
+    ''' Returns the active space of an n-dimensional array.
+    '''
+
+    frozen = uagf2.options['frozen']
+
+    if not frozen:
+        return arr
+
+    # Filter out spin indices (could get confused for nao == 2 but
+    # such systems should never have frozen orbitals):
+    ndim = sum(x == uagf2.hf.nao for x in arr.shape)
+    act = (Ellipsis,) + (slice(frozen, None),)*ndim
+
+    return arr[act]
 
 
 class UAGF2:
@@ -64,6 +83,8 @@ class UAGF2:
     dm0 : (2,n,n) ndarray, optional
         initial density matrix for alpha and beta spins, if None, 
         use rhf.rdm1_mo, default None
+    frozen : int, optional
+        number of frozen core orbitals, default 0
     verbose : bool, optional
         if True, print output log, default True
     maxiter : int, optional
@@ -161,8 +182,9 @@ class UAGF2:
         self.converged = False
         self.iteration = 0
 
-        self.se = (aux.Aux([], [[],]*self.hf.nao, chempot=self.hf.chempot[0]),
-                   aux.Aux([], [[],]*self.hf.nao, chempot=self.hf.chempot[1]))
+        nact = self.hf.nao - self.options['frozen']
+        self.se = (aux.Aux([], [[],]*nact, chempot=self.hf.chempot[0]),
+                   aux.Aux([], [[],]*nact, chempot=self.hf.chempot[1]))
         self._se_prev = (None, None)
 
         self._timings = {}
@@ -185,9 +207,17 @@ class UAGF2:
     @util.record_time('build')
     def build(self):
         self._se_prev = (self.se[0].copy(), self.se[1].copy())
+        eri_act = _active(self, self.eri)
 
-        sea, seb = aux.build_ump2_iter(self.se, self.get_fock(), self.eri,
-                                       **self.options['_build'])
+        if self.iteration:
+            fock_act = _active(self, self.get_fock())
+            sea, seb = aux.build_ump2_iter(self.se, fock_act, eri_act,
+                                           **self.options['_build'])
+        else:
+            e_act = _active(self, self.hf.e)
+            sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'])
+            seb = aux.build_ump2(e_act[::-1], eri_act[1][::-1], 
+                                 **self.options['_build'])
 
         if self.options['use_merge']:
             sea = sea.merge(etol=self.options['etol'], 
@@ -220,8 +250,9 @@ class UAGF2:
             log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1],
                       self.verbose)
 
-        e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(self.h1e[0]))
-        e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(self.h1e[1]))
+        h1e_act = _active(self, self.h1e)
+        e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(h1e_act[0]))
+        e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(h1e_act[1]))
 
         self.se = se
         self.rdm1 = rdm1
@@ -245,8 +276,9 @@ class UAGF2:
         if nmom_gf is None and nmom_se is None:
             return
 
-        sea = self.se[0].compress(self.get_fock()[0], self.nmom)
-        seb = self.se[1].compress(self.get_fock()[1], self.nmom)
+        fock_act = _active(self, self.get_fock())
+        sea = self.se[0].compress(fock_act[0], self.nmom)
+        seb = self.se[1].compress(fock_act[1], self.nmom)
 
         if self.options['use_merge']:
             sea = sea.merge(etol=self.options['etol'],
@@ -292,14 +324,17 @@ class UAGF2:
         if rdm1 is None:
             rdm1 = self.rdm1
 
-        return self.hf.get_fock(self.h1e, rdm1, self.eri)
+        fock = self.hf.get_fock(self.h1e, rdm1, self.eri)
+
+        return fock
 
 
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
-        emp2a = aux.energy.energy_mp2_aux(self.hf.e[0], self.se[0])
-        emp2b = aux.energy.energy_mp2_aux(self.hf.e[1], self.se[1])
+        e_act = _active(self, self.hf.e)
+        emp2a = aux.energy.energy_mp2_aux(e_act[0], self.se[0])
+        emp2b = aux.energy.energy_mp2_aux(e_act[1], self.se[1])
 
         emp2 = emp2a + emp2b
         emp2 /= 2
@@ -321,10 +356,9 @@ class UAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        gfa = aux.Aux(*self.se[0].eig(self.get_fock()[0]), 
-                      chempot=self.chempot[0])
-        gfb = aux.Aux(*self.se[1].eig(self.get_fock()[1]), 
-                      chempot=self.chempot[0])
+        fock_act = _active(self, self.get_fock())
+        gfa = aux.Aux(*self.se[0].eig(fock_act[0]), chempot=self.chempot[0])
+        gfb = aux.Aux(*self.se[1].eig(fock_act[1]), chempot=self.chempot[0])
 
         e2ba = aux.energy.energy_2body_aux(gfa, self.se[0])
         e2bb = aux.energy.energy_2body_aux(gfb, self.se[1])
