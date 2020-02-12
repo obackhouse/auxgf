@@ -6,7 +6,7 @@ import functools
 from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
 
-from auxgf.util import types
+from auxgf.util import types, mkl
 
 use_pyscf_einsum = False
 
@@ -29,6 +29,51 @@ eigh = np.linalg.eigh
 dots = np.linalg.multi_dot
 qr = np.linalg.qr
 eigvalsh = np.linalg.eigvalsh
+
+
+def qr_unsafe(a):
+    ''' Performs a QR decomposition of an array. This is faster than
+        `numpy.linalg.qr` for C-contiguous arrays.
+
+        If `a.flags['C_CONTIGUOUS']`, `a` is overwritten and `q` will
+        use the same memory. This does not apply if `a` is not an
+        ndarray or has `a.flags['F_CONTIGUOUS']`.
+
+        Equivalent to `np.linalg.qr(a, mode='reduced')`.
+
+    Parameters
+    ----------
+    a : (m,n) array
+        array to be orthogonalised
+
+    Returns
+    -------
+    q : (m,n) ndarray
+        orthogonalised vectors
+    r : (n,n) ndarray
+        upper-triangular matrix
+    '''
+
+    #if not mkl.has_mkl:
+    #    return np.linalg.qr(a)
+
+    a = np.ascontiguousarray(a)
+
+    m, n = a.shape
+    mn = min(m, n)
+
+    tau = np.zeros((max(1, mn),), dtype=a.dtype)
+
+    mkl.dgeqrf(m, n, a, max(1, n), tau)
+
+    q = a.copy()
+
+    mkl.dorgqr(m, mn, mn, q, max(1, n), tau)
+
+    q = q[:,:mn]
+    r = np.triu(a[:mn])
+
+    return q, r
 
 
 def block_diag(arrays):
