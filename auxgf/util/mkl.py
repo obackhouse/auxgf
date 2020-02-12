@@ -96,6 +96,32 @@ def _wrap_lapacke(method):
     return wrapper
 
 
+def _set_mkl_num_threads(method):
+    ''' Temporarily sets MKL_NUM_THREADS to be OMP_NUM_THREADS. The
+        MKL functions seem to usually use the former, so this seems
+        like a decent way to ensure the MKL functions use as many
+        threads as the standard numpy ones.
+    '''
+
+    #TODO come up with a more rigorous solution to this
+
+    mkl_num_threads = os.environ.get('MKL_NUM_THREADS', 1)
+    omp_num_threads = os.environ.get('OMP_NUM_THREADS', 1)
+
+    def wrapper(*args):
+        if mkl_num_threads == omp_num_threads:
+            out = method(*args)
+        else:
+            try:
+                os.environ['MKL_NUM_THREADS'] = omp_num_threads
+                out = method(*args)
+            finally:
+                os.environ['MKL_NUM_THREADS'] = mkl_num_threads
+
+    return wrapper
+
+
+@_set_mkl_num_threads
 @_wrap_lapacke
 def dgeqrf(m, n, a, lda, tau):
     return lapacke_dgeqrf(c_int32(_lapacke_row_major),
@@ -106,6 +132,7 @@ def dgeqrf(m, n, a, lda, tau):
                           tau)
 
 
+@_set_mkl_num_threads
 @_wrap_lapacke
 def dorgqr(m, n, k, a, lda, tau):
     return lapacke_dorgqr(c_int32(_lapacke_row_major),

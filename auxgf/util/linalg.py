@@ -54,8 +54,8 @@ def qr_unsafe(a):
         upper-triangular matrix
     '''
 
-    #if not mkl.has_mkl:
-    #    return np.linalg.qr(a)
+    if not mkl.has_mkl:
+        return np.linalg.qr(a)
 
     a = np.ascontiguousarray(a)
 
