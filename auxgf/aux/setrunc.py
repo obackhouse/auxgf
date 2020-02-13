@@ -105,8 +105,8 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         if kwargs.get('reorthog', True):
             r -= np.dot(v[-1], np.dot(v[-1].T, r))
 
-        #vnext, b[j] = util.qr(r, mode='reduced')
-        vnext, b[j] = util.qr_unsafe(r)
+        vnext, b[j] = util.qr(r, mode='reduced')
+        #vnext, b[j] = util.qr_unsafe(r)
 
         if not keep_v:
             v = [v[-1], vnext]
