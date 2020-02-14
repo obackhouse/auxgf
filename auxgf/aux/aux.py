@@ -499,6 +499,7 @@ class Aux:
         '''
 
         n = np.asarray(n, dtype=types.int64)
+        n = n.reshape(n.size)
 
         en = self.e[None] ** n[:,None]
         moms = util.einsum('xk,yk,nk->nxy', self.v, self.v, en)
