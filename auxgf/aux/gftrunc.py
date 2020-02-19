@@ -2,14 +2,68 @@
 '''
 
 import numpy as np
+import scipy.special
+import scipy.integrate
 
 from auxgf import util
 from auxgf.util import types
 
 
-#TODO: check memory usage here
+#TODO: check memory usage
 
-def build_projector(aux, h_phys, nmom, wtol=1e-10):
+
+def kernel(e, nmom, method='power', beta=100):
+    ''' Prepares f(e,n), that is the kernel function of the energies
+        for a given order required to construct the projector.
+
+    Parameters
+    ----------
+    e : (m) array
+        energies
+    nmom : int
+        maximum moment order
+    method : str, optional
+        kernel method {'power', 'legendre'}, default 'power'
+    beta : float, optional
+        inverse temperature, required for `method='legendre'`,
+    
+    Returns
+    -------
+    f_en : (n+1,m) ndarray
+        function f(e,n) computed for each `nmom` and `e`
+    '''
+
+    e = np.asarray(e).reshape(np.size(e))
+    f_en = np.zeros((nmom+1, e.size), dtype=types.float64)
+
+    if method == 'power':
+        f_en[0] = 1
+
+        for n in range(1, nmom+1):
+            f_en[n] = e ** n
+
+    elif method == 'legendre':
+        if beta is None:
+            raise ValueError("Must pass keyword argument `beta` for "
+                             "auxgf.aux.gftrunc.kernel with `method='power'`")
+
+        tfac = 2.0 / beta
+
+        def fn(t, e, n, beta):
+            p = scipy.special.legendre(n)
+            x = tfac * t + 1
+            return p(x) * np.exp(-e * (t + (e > 0) * beta))
+
+        f_en[0] = 1
+
+        for i in range(e.size):
+            for n in range(1, nmom+1):
+                f_en[n,i] = scipy.integrate.quad(fn, -beta, 0, args=(e[i], n, beta))[0] 
+
+    return f_en
+
+
+def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10):
     ''' Builds the vectors which project the auxiliary space into a
         compressed one with consistent moments up to order `nmom`.
 
@@ -20,7 +74,11 @@ def build_projector(aux, h_phys, nmom, wtol=1e-10):
     h_phys : (n,n) ndarray
         physical space Hamiltonian
     nmom : int
-        number of moments
+        maximum moment order
+    method : str, optional
+        kernel method {'power', 'legendre'}, default 'power'
+    beta : float, optional
+        inverse temperature, required for `method='legendre'`
     wtol : float, optional
         tolerance in eigenvalues for linear dependency analysis
 
@@ -37,14 +95,14 @@ def build_projector(aux, h_phys, nmom, wtol=1e-10):
     occ = e < aux.chempot
     vir = e >= aux.chempot
 
-    e_occ = np.power.outer(e[occ], np.arange(nmom+1))
-    e_vir = np.power.outer(e[vir], np.arange(nmom+1))
+    e_occ = kernel(e[occ], nmom, method=method, beta=beta)
+    e_vir = kernel(e[vir], nmom, method=method, beta=beta)
 
     c_occ = c[:,occ]
     c_vir = c[:,vir]
 
-    p_occ = util.einsum('xi,pi,in->xpn', c_occ[nphys:], c_occ[:nphys], e_occ)
-    p_vir = util.einsum('xa,pa,an->xpn', c_vir[nphys:], c_vir[:nphys], e_vir)
+    p_occ = util.einsum('xi,pi,ni->xpn', c_occ[nphys:], c_occ[:nphys], e_occ)
+    p_vir = util.einsum('xa,pa,na->xpn', c_vir[nphys:], c_vir[:nphys], e_vir)
 
     p_occ = p_occ.reshape((aux.naux, aux.nphys*(nmom+1)))
     p_vir = p_vir.reshape((aux.naux, aux.nphys*(nmom+1)))
@@ -88,7 +146,7 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom):
+def run(aux, h_phys, nmom, method='power', beta=100):
     ''' Runs the truncation by moments of the Green's function.
 
         [1] arXiv:1904.08019
@@ -101,6 +159,10 @@ def run(aux, h_phys, nmom):
         physical space Hamiltonian
     nmom : int
         number of moments
+    method : str, optional
+        kernel method {'power', 'legendre'}, default 'power'
+    beta : float, optional
+        inverse temperature, required for `method='legendre'`
 
     Returns
     -------
@@ -110,7 +172,7 @@ def run(aux, h_phys, nmom):
 
     #TODO: debugging mode which checks the moments
 
-    p = build_projector(aux, h_phys, nmom)
+    p = build_projector(aux, h_phys, nmom, method=method, beta=beta)
 
     h_tilde = np.dot(p.T, aux.dot(h_phys, p))
 

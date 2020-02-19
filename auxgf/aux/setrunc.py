@@ -185,7 +185,7 @@ def run(aux, h_phys, nmom):
     h_phys : (n,n) ndarray
         physical space Hamiltonian
     nmom : int
-        number of moments
+        maximum moment order
 
     Returns
     -------

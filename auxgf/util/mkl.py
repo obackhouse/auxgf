@@ -7,9 +7,14 @@
 import numpy as np
 import os
 from ctypes import *
+import functools
 
 
-_ndp = np.ctypeslib.ndpointer
+_ndp = functools.partial(np.ctypeslib.ndpointer,
+                         ndim=1,
+                         flags='C,A,W',
+                         dtype=np.float64)
+
 _lapacke_row_major = 101
 _lapacke_col_major = 102
 
@@ -52,9 +57,9 @@ if has_mkl:
         c_int32,
         c_int64,
         c_int64,
-        _ndp(ndim=2, flags='C,A,W', dtype=np.float64),
+        _ndp(ndim=2),
         c_int64,
-        _ndp(ndim=1, flags='C,A,W', dtype=np.float64) 
+        _ndp()
     ]
     lapacke_dgeqrf.restype = c_int64
 
@@ -65,11 +70,36 @@ if has_mkl:
         c_int64,
         c_int64,
         c_int64,
-        _ndp(ndim=2, flags='C,A,W', dtype=np.float64),
+        _ndp(ndim=2),
         c_int64,
-        _ndp(ndim=1, flags='C,A,W', dtype=np.float64)
+        _ndp(ndim=1)
     ]
     lapacke_dorgqr.restype = c_int64
+
+    # DGERQF
+    lapacke_dgerqf = lib_mkl.LAPACKE_dgerqf
+    lapacke_dgerqf.argtypes = [
+        c_int32,
+        c_int64,
+        c_int64,
+        _ndp(ndim=2),
+        c_int64,
+        _ndp()
+    ]
+    lapacke_dgerqf.restype = c_int64
+
+    # DORGQR
+    lapacke_dorgrq = lib_mkl.LAPACKE_dorgrq
+    lapacke_dorgrq.argtypes = [
+        c_int32,
+        c_int64,
+        c_int64,
+        c_int64,
+        _ndp(ndim=2),
+        c_int64,
+        _ndp(ndim=1)
+    ]
+    lapacke_dorgrq.restype = c_int64
 
 
 def _wrap_lapacke(method):
@@ -87,6 +117,11 @@ def _wrap_lapacke(method):
         if not has_mkl or lib_mkl is None:
             raise RuntimeError('MKL library must be present to use '
                                'auxgf.util.mkl.')
+
+        if args[0].lower() in ['f', 'col']:
+            args[0] = _lapacke_col_major
+        else:
+            args[0] = _lapacke_row_major
 
         info = method(*args)
 
@@ -123,8 +158,8 @@ def _set_mkl_num_threads(method):
 
 @_set_mkl_num_threads
 @_wrap_lapacke
-def dgeqrf(m, n, a, lda, tau):
-    return lapacke_dgeqrf(c_int32(_lapacke_row_major),
+def dgeqrf(align, m, n, a, lda, tau):
+    return lapacke_dgeqrf(c_int32(align),
                           c_int64(m),
                           c_int64(n),
                           a,
@@ -134,8 +169,31 @@ def dgeqrf(m, n, a, lda, tau):
 
 @_set_mkl_num_threads
 @_wrap_lapacke
-def dorgqr(m, n, k, a, lda, tau):
-    return lapacke_dorgqr(c_int32(_lapacke_row_major),
+def dorgqr(align, m, n, k, a, lda, tau):
+    return lapacke_dorgqr(c_int32(align),
+                          c_int64(m),
+                          c_int64(n),
+                          c_int64(k),
+                          a,
+                          c_int64(lda),
+                          tau)
+
+
+@_set_mkl_num_threads
+@_wrap_lapacke
+def dgerqf(align, m, n, a, lda, tau):
+    return lapacke_dgerqf(c_int32(align),
+                          c_int64(m),
+                          c_int64(n),
+                          a,
+                          c_int64(lda),
+                          tau)
+
+
+@_set_mkl_num_threads
+@_wrap_lapacke
+def dorgrq(align, m, n, k, a, lda, tau):
+    return lapacke_dorgrq(c_int32(align),
                           c_int64(m),
                           c_int64(n),
                           c_int64(k),

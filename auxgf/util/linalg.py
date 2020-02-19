@@ -5,6 +5,7 @@ import numpy as np
 import functools
 from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
+import os
 
 from auxgf.util import types, mkl
 
@@ -61,14 +62,13 @@ def qr_unsafe(a):
 
     m, n = a.shape
     mn = min(m, n)
-
     tau = np.zeros((max(1, mn),), dtype=a.dtype)
 
-    mkl.dgeqrf(m, n, a, max(1, n), tau)
+    mkl.dgeqrf('c', m, n, a, max(1, n), tau)
 
     q = a.copy()
 
-    mkl.dorgqr(m, mn, mn, q, max(1, n), tau)
+    mkl.dorgqr('c', m, mn, mn, q, max(1, n), tau)
 
     q = q[:,:mn]
     r = np.triu(a[:mn])

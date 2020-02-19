@@ -549,7 +549,7 @@ class Aux:
         return red
 
 
-    def gf_compress(self, h_phys, nmom):
+    def gf_compress(self, h_phys, nmom, method='power', beta=100):
         ''' Compresses the auxiliaries via the associated Green's 
             function. Compression is performed out-of-place.
 
@@ -559,6 +559,10 @@ class Aux:
             physical space Hamiltonian
         nmom : int
             number of moments
+        method : str, optional
+            kernel method {'power', 'legendre'}, default 'power'
+        beta : float, optional
+            inverse temperature, required for `method='legendre'`
 
         Returns
         -------
@@ -566,12 +570,12 @@ class Aux:
             reduced auxiliaries
         '''
 
-        red = gftrunc.run(self, h_phys, nmom)
+        red = gftrunc.run(self, h_phys, nmom, method=method, beta=beta)
 
         return red
 
 
-    def compress(self, h_phys, nmom):
+    def compress(self, h_phys, nmom, method='power', beta=100):
         ''' Compresses the auxiliaries via the hybird algorithm.
             Compression is performed out-of-place.
 
@@ -583,6 +587,10 @@ class Aux:
             number of moments, where first element is the number of
             Green's function moments, and second number if the number 
             of initial self-energy moments (either can be None)
+        method : str, optional
+            GF kernel method {'power', 'legendre'}, default 'power'
+        beta : float, optional
+            GF inverse temperature, required for `method='legendre'`
 
         Returns
         -------
@@ -595,14 +603,14 @@ class Aux:
         elif nmom[0] == None:
             return self.se_compress(h_phys, nmom[1])
         elif nmom[1] == None:
-            return self.gf_compress(h_phys, nmom[0])
+            return self.gf_compress(h_phys, nmom[0], method=method, beta=beta)
 
         # I don't want to flag for intermediate self.merge call, if
         # this is desired then the user should separately call
         # self.se_compress and self.gf_compress
 
         red = self.se_compress(h_phys, nmom[1])
-        red = red.gf_compress(h_phys, nmom[0])
+        red = red.gf_compress(h_phys, nmom[0], method=method, beta=beta)
 
         return red
 
