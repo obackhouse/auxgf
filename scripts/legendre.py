@@ -94,11 +94,9 @@ def codegen_legendre_bath_kernel(n):
     func += '    a2 = a*a\n'
     if n > 1:
         func += '    b2 = b*b\n'
-        func += '    t2 = t*t\n'
         for i in range(3, n+1):
             func += '    a%d = a%d*a\n' % (i, i-1) 
             func += '    b%d = b%d*b\n' % (i, i-1)
-            func += '    t%d = t%d*t\n' % (i, i-1)
         func += '    a%d = a%d*a\n' % (n+1, n)
 
     func += '    hi = %s\n' % str_hi
@@ -108,10 +106,10 @@ def codegen_legendre_bath_kernel(n):
     return func
 
 
-
-
-
-
+#import sys
+#with open('code.dat', 'w') as sys.stdout:
+#    for n in range(1, 9):
+#        print(codegen_legendre_bath_kernel(n))
 
 
 
