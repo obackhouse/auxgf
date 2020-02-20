@@ -4,6 +4,7 @@ import scipy.integrate
 
 try:
     import sympy as sp
+    from sympy.printing.pycode import NumPyPrinter as numpy_printer
 except ImportError:
     pass
 
@@ -62,54 +63,31 @@ def codegen_legendre_bath_kernel(n):
     expr = sp.simplify(expr)
     hi = sp.simplify(expr.subs({t:0}))
     lo = sp.simplify(expr.subs({t:-b}))
+    expr = sp.simplify(hi - lo)
+    expr = sp.cse(expr)
 
-    str_hi = str(hi)
-    str_lo = str(lo)
-
-
-    # Some light optimisation by removing the powers and declaring
-    # them as variables avoiding recomputation, b and t should be
-    # raise up to order n and a up to order n+1.
-
-    for i in range(n+1, 1, -1):
-        str_hi = str_hi.replace('**%d' % i, '%d' % i)
-        str_lo = str_lo.replace('**%d' % i, '%d' % i)
-
-
-    # Change the Heaviside and exp function
-
-    str_hi = str_hi.replace('Heaviside(a)', '(a > 0)')
-    str_lo = str_lo.replace('Heaviside(a)', '(a > 0)')
-    str_hi = str_hi.replace('exp', 'np.exp')
-    str_lo = str_lo.replace('exp', 'np.exp')
-
-
-    # Write the function
+    numpy_printer()._kf['Heaviside'] = 'numpy.heaviside'
 
     func  = 'def legendre_bath_kernel_%d(e, beta):\n' % n
-
     func += '    a = e\n'
     func += '    b = beta\n'
 
-    func += '    a2 = a*a\n'
-    if n > 1:
-        func += '    b2 = b*b\n'
-        for i in range(3, n+1):
-            func += '    a%d = a%d*a\n' % (i, i-1) 
-            func += '    b%d = b%d*b\n' % (i, i-1)
-        func += '    a%d = a%d*a\n' % (n+1, n)
+    for subexpr in expr[0]:
+        func += '    %s\n' % numpy_printer().doprint(subexpr[1], subexpr[0])
 
-    func += '    hi = %s\n' % str_hi
-    func += '    lo = %s\n' % str_lo
-    func += '    return hi - lo\n'
+    func += '    %s\n' % numpy_printer().doprint(expr[-1][0], 'val')
+    func += '    return val\n'
+
+    func = func.replace('numpy.heaviside(a)', 'numpy.heaviside(a, 0.0)')
+    func = func.replace('numpy', 'np')
 
     return func
 
 
-#import sys
-#with open('code.dat', 'w') as sys.stdout:
-#    for n in range(1, 9):
-#        print(codegen_legendre_bath_kernel(n))
+import sys
+with open('code.dat', 'w') as sys.stdout:
+    for n in range(1, 9):
+        print(codegen_legendre_bath_kernel(n))
 
 
 
