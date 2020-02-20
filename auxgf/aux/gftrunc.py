@@ -7,12 +7,13 @@ import scipy.integrate
 
 from auxgf import util
 from auxgf.util import types
+from auxgf.aux import _gfkern
 
 
 #TODO: check memory usage
 
 
-def kernel(e, nmom, method='power', beta=100):
+def kernel(e, nmom, method='power', beta=100, chempot=0.0):
     ''' Prepares f(e,n), that is the kernel function of the energies
         for a given order required to construct the projector.
 
@@ -26,6 +27,8 @@ def kernel(e, nmom, method='power', beta=100):
         kernel method {'power', 'legendre'}, default 'power'
     beta : float, optional
         inverse temperature, required for `method='legendre'`,
+    chempot : float, optional
+        chemical potential, required for `method='legendre'`
     
     Returns
     -------
@@ -35,10 +38,9 @@ def kernel(e, nmom, method='power', beta=100):
 
     e = np.asarray(e).reshape(np.size(e))
     f_en = np.zeros((nmom+1, e.size), dtype=types.float64)
+    f_en[0] = 1
 
     if method == 'power':
-        f_en[0] = 1
-
         for n in range(1, nmom+1):
             f_en[n] = e ** n
 
@@ -47,23 +49,28 @@ def kernel(e, nmom, method='power', beta=100):
             raise ValueError("Must pass keyword argument `beta` for "
                              "auxgf.aux.gftrunc.kernel with `method='power'`")
 
-        tfac = 2.0 / beta
+        for n in range(1, min(nmom+1, _gfkern._max_kernel_order+1)):
+            f_en[n] = _gfkern._legendre_bath_kernel(n, e, beta, chempot=chempot)
 
-        def fn(t, e, n, beta):
-            p = scipy.special.legendre(n)
-            x = tfac * t + 1
-            return p(x) * np.exp(-e * (t + (e > 0) * beta))
+        if nmom > _gfkern._max_kernel_order:
+            tfac = 2.0 / beta
 
-        f_en[0] = 1
+            def fn(t, e, n, beta):
+                p = scipy.special.legendre(n)
+                x = tfac * t + 1
+                return p(x) * np.exp(-e * (t + (e-chempot > 0) * beta))
 
-        for i in range(e.size):
-            for n in range(1, nmom+1):
-                f_en[n,i] = scipy.integrate.quad(fn, -beta, 0, args=(e[i], n, beta))[0] 
+            f_en[0] = 1
+
+            for i in range(e.size):
+                for n in range(_gfkern._max_kernel_order+1, nmom+1):
+                    f_en[n,i] = scipy.integrate.quad(fn, -beta, 0, 
+                                                     args=(e[i], n, beta))[0]
 
     return f_en
 
 
-def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10):
+def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10, chempot=0.0):
     ''' Builds the vectors which project the auxiliary space into a
         compressed one with consistent moments up to order `nmom`.
 
@@ -81,6 +88,8 @@ def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10):
         inverse temperature, required for `method='legendre'`
     wtol : float, optional
         tolerance in eigenvalues for linear dependency analysis
+    chempot : float, optional
+        chemical potential, required for `method='legendre'`
 
     Returns
     -------
@@ -95,8 +104,8 @@ def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10):
     occ = e < aux.chempot
     vir = e >= aux.chempot
 
-    e_occ = kernel(e[occ], nmom, method=method, beta=beta)
-    e_vir = kernel(e[vir], nmom, method=method, beta=beta)
+    e_occ = kernel(e[occ], nmom, method=method, beta=beta, chempot=chempot)
+    e_vir = kernel(e[vir], nmom, method=method, beta=beta, chempot=chempot)
 
     c_occ = c[:,occ]
     c_vir = c[:,vir]
@@ -146,7 +155,7 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom, method='power', beta=100):
+def run(aux, h_phys, nmom, method='power', beta=100, chempot=0.0):
     ''' Runs the truncation by moments of the Green's function.
 
         [1] arXiv:1904.08019
@@ -163,6 +172,8 @@ def run(aux, h_phys, nmom, method='power', beta=100):
         kernel method {'power', 'legendre'}, default 'power'
     beta : float, optional
         inverse temperature, required for `method='legendre'`
+    chempot : float, optional
+        chemical potential, required for `method='legendre'`
 
     Returns
     -------
@@ -172,7 +183,8 @@ def run(aux, h_phys, nmom, method='power', beta=100):
 
     #TODO: debugging mode which checks the moments
 
-    p = build_projector(aux, h_phys, nmom, method=method, beta=beta)
+    p = build_projector(aux, h_phys, nmom, method=method, 
+                        beta=beta, chempot=chempot)
 
     h_tilde = np.dot(p.T, aux.dot(h_phys, p))
 
