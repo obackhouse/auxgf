@@ -349,10 +349,10 @@ def normalise(array, shift=1e-20):
 
     array = np.asarray(array)
 
-    if array.ndim == 1:
-        return array / (norm(array) + shift)
-    else:
-        return array / (np.sqrt(np.sum(array*array, axis=0, keepdims=True)) + shift)
+    n = norm(array, axis=0, keepdims=True)
+    n[np.absolute(n) < 0] = shift
+
+    return array / n
 
 
 def batch_eigh(arrays):
