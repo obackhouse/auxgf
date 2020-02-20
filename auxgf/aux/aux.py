@@ -549,7 +549,7 @@ class Aux:
         return red
 
 
-    def gf_compress(self, h_phys, nmom, method='power', beta=100):
+    def gf_compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0):
         ''' Compresses the auxiliaries via the associated Green's 
             function. Compression is performed out-of-place.
 
@@ -563,6 +563,8 @@ class Aux:
             kernel method {'power', 'legendre'}, default 'power'
         beta : float, optional
             inverse temperature, required for `method='legendre'`
+        chempot : float, optional
+            chemical potential, required for `method='legendre'`
 
         Returns
         -------
@@ -570,12 +572,13 @@ class Aux:
             reduced auxiliaries
         '''
 
-        red = gftrunc.run(self, h_phys, nmom, method=method, beta=beta)
+        red = gftrunc.run(self, h_phys, nmom, method=method, 
+                          beta=beta, chempot=chempot)
 
         return red
 
 
-    def compress(self, h_phys, nmom, method='power', beta=100):
+    def compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0):
         ''' Compresses the auxiliaries via the hybird algorithm.
             Compression is performed out-of-place.
 
@@ -591,6 +594,8 @@ class Aux:
             GF kernel method {'power', 'legendre'}, default 'power'
         beta : float, optional
             GF inverse temperature, required for `method='legendre'`
+        chempot : float, optional
+            chemical potential, required for `method='legendre'`
 
         Returns
         -------
@@ -603,14 +608,16 @@ class Aux:
         elif nmom[0] == None:
             return self.se_compress(h_phys, nmom[1])
         elif nmom[1] == None:
-            return self.gf_compress(h_phys, nmom[0], method=method, beta=beta)
+            return self.gf_compress(h_phys, nmom[0], method=method, 
+                                    beta=beta, chempot=self.chempot)
 
         # I don't want to flag for intermediate self.merge call, if
         # this is desired then the user should separately call
         # self.se_compress and self.gf_compress
 
         red = self.se_compress(h_phys, nmom[1])
-        red = red.gf_compress(h_phys, nmom[0], method=method, beta=beta)
+        red = red.gf_compress(h_phys, nmom[0], method=method, 
+                              beta=beta, chempot=self.chempot)
 
         return red
 
