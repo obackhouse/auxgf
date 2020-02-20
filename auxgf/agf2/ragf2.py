@@ -26,6 +26,8 @@ def _set_options(**kwargs):
                 'ss_factor' : 1.0,
                 'os_factor' : 1.0,
                 'use_merge' : False,
+                'bath_type' : 'power',
+                'bath_beta' : 100,
     }
 
     for key,val in kwargs.items():
@@ -111,6 +113,11 @@ class RAGF2:
     use_merge : bool, optional
         if True, perform the exact degeneracy-based merge, default
         False
+    bath_type : str, optional
+        GF truncation kernel method {'power', 'legendre'}, default 
+        'power'
+    bath_beta : int, optional
+        inverse temperature used in GF truncation kernel, default 100
 
     Attributes
     ----------
@@ -253,7 +260,9 @@ class RAGF2:
         if nmom_gf is None and nmom_se is None:
             return
 
-        self.se = self.se.compress(_active(self, self.get_fock()), self.nmom)
+        self.se = self.se.compress(_active(self, self.get_fock()), self.nmom,
+                                   method=self.options['bath_type'],
+                                   beta=self.options['bath_beta'])
 
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'],

@@ -51,8 +51,8 @@ def codegen_legendre_bath_kernel(n):
     -------
     func : str
         string containing the code. The first line is given as
-        `def legendre_bath_kernel_n(e, beta):`, where `n` is
-        replaced with the input variable.
+        `def legendre_bath_kernel_n(e, beta, chempot=0.0):`, where 
+        `n` is replaced with the input variable.
     '''
 
     t = sp.symbols('t', real=True)
@@ -64,11 +64,12 @@ def codegen_legendre_bath_kernel(n):
     hi = sp.simplify(expr.subs({t:0}))
     lo = sp.simplify(expr.subs({t:-b}))
     expr = sp.simplify(hi - lo)
-    expr = sp.cse(expr)
+    print(expr)
+    expr = sp.cse(expr, optimizations='basic')
 
     numpy_printer()._kf['Heaviside'] = 'numpy.heaviside'
 
-    func  = 'def legendre_bath_kernel_%d(e, beta):\n' % n
+    func  = 'def legendre_bath_kernel_%d(e, beta, chempot=0.0):\n' % n
     func += '    a = e\n'
     func += '    b = beta\n'
 
@@ -78,12 +79,13 @@ def codegen_legendre_bath_kernel(n):
     func += '    %s\n' % numpy_printer().doprint(expr[-1][0], 'val')
     func += '    return val\n'
 
-    func = func.replace('numpy.heaviside(a)', 'numpy.heaviside(a, 0.0)')
+    func = func.replace('numpy.heaviside(a)', 'numpy.heaviside(a-chempot, 0.0)')
     func = func.replace('numpy', 'np')
 
     return func
 
 
+print(codegen_legendre_bath_kernel(5))
 #import sys
 #with open('code.dat', 'w') as sys.stdout:
 #    for n in range(1, 9):
