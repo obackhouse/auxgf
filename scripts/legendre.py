@@ -84,10 +84,10 @@ def codegen_legendre_bath_kernel(n):
     return func
 
 
-import sys
-with open('code.dat', 'w') as sys.stdout:
-    for n in range(1, 9):
-        print(codegen_legendre_bath_kernel(n))
+#import sys
+#with open('code.dat', 'w') as sys.stdout:
+#    for n in range(1, 9):
+#        print(codegen_legendre_bath_kernel(n))
 
 
 
