@@ -60,7 +60,7 @@ def energy_2body_aux(gf, se, both_sides=False):
     else:
         e2b *= 2.0
 
-    return np.asscalar(e2b)
+    return np.ravel(e2b)[0]
 
 
 def energy_mp2_aux(mo, se, both_sides=False):
@@ -110,7 +110,7 @@ def energy_mp2_aux(mo, se, both_sides=False):
         e2b += util.einsum('xk,xk->', vxk**2, dxk)
         e2b *= 0.5
 
-    return np.asscalar(e2b)
+    return np.ravel(e2b)[0]
 
 
 
