@@ -55,10 +55,11 @@ class GHF(hf.HF):
         hf : GHF
             Hartree-Fock object
         '''
-        _hf = GHF(mol.from_pyscf(hf.mol))
+
+        _hf = GHF(mol.Molecule.from_pyscf(hf.mol))
 
         _hf._pyscf = hf
-        _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e', hf.mol.nao))
+        _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
         
         return _hf
 
