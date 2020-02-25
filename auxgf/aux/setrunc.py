@@ -69,7 +69,6 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         automatically enabled in `debug` is True
         WARNING: this kills the memory usage
 
-
     Returns
     -------
     m : (`nblock`+1,n,n) ndarray
@@ -138,6 +137,67 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         return m, b, v
 
 
+def band_lanczos(aux, h_phys, nblock, **kwargs):
+    ''' Band diagonalization of the environment of a Hamiltonain
+        spanning the physical and auxiliary space, using the block
+        Lanczos algorithm.
+
+    Parameters
+    ----------
+    aux : Aux
+        auxiliaries
+    h_phys : (n,n) array
+        physical space Hamiltonian
+    nblock : int or float
+        number of blocks required = nmom + 1, if float is given, the
+        size of the resulting space is rounded to an integer
+    debug : bool, optional
+        enable debugging tools (default False)
+        WARNING: this kills the scaling and memory usage
+
+    Returns
+    -------
+    t : (m,m) ndarray
+        Band-diagonal matrix, side length (`nblock`+1)*`nphys`.
+    '''
+
+    nphys = aux.nphys
+    naux = aux.naux
+    nband = int(nblock * nphys)
+
+    v, coup = util.qr(aux.v.T, mode='reduced')
+    q = np.zeros((nband, naux), dtype=np.float64)
+    q[:nphys] = v.T
+    t = np.zeros((nband, nband), dtype=np.float64)
+
+    for i in range(nband):
+        r = aux.e * q[i]
+
+        start = max(i-nphys, 0)
+        if start != i:
+            r -= np.dot(t[i,start:i], q[start:i])
+
+        for j in range(i, min(i+nphys, nband)):
+            t[i,j] = t[j,i] = scipy.linalg.blas.ddot(r, q[j])
+            scipy.linalg.blas.daxpy(q[j], r, a=-t[i,j])
+
+        if i+nphys < nband:
+            norm_r = util.norm(r)
+            t[i,i+nphys] = t[i+nphys,i] = norm_r
+            q[i+nphys] = r / (norm_r + 1e-100)
+    
+    if kwargs.get('debug', False):
+        # This might fail if naux < nphys
+        assert np.allclose(np.dot(q, aux.e[:,None] * q.T), t)
+
+    coup_block = np.zeros((nband, nphys), dtype=np.float64)
+    coup_block[:nphys] = coup
+
+    t = np.block([[h_phys, coup_block.T], [coup_block, t]])
+
+    return t
+
+
 def build_auxiliaries(h, nphys):
     ''' Builds a set of auxiliary energies and couplings from the
         block tridiagonal Hamiltonian.
@@ -166,7 +226,7 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom):
+def run(aux, h_phys, nmom, method='band'):
     ''' Runs the truncation by moments of the self-energy.
         
         [1] H. Muther, T. Taigel and T. T. S. Kuo, Nucl. Phys., 482, 
@@ -186,6 +246,8 @@ def run(aux, h_phys, nmom):
         physical space Hamiltonian
     nmom : int
         maximum moment order
+    method : str, optional
+        type of diagonalizer to use {'block', 'band'}, default 'band'
 
     Returns
     -------
@@ -195,11 +257,16 @@ def run(aux, h_phys, nmom):
 
     #TODO: debugging mode which checks the moments
 
-    m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
-    m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
+    if method == 'block':
+        m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
+        m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
 
-    t_occ = build_block_tridiag(m_occ, b_occ)
-    t_vir = build_block_tridiag(m_vir, b_vir)
+        t_occ = build_block_tridiag(m_occ, b_occ)
+        t_vir = build_block_tridiag(m_vir, b_vir)
+
+    else:
+        t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
+        t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
 
     e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
     e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
