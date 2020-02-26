@@ -51,6 +51,9 @@ def _set_options(**kwargs):
         'os_factor' : options['os_factor'],
     }
 
+    if not isinstance(options['frozen'], tuple):
+        options['frozen'] = (options['frozen'], 0)
+
     return options
 
 
@@ -66,7 +69,7 @@ def _active(uagf2, arr):
     # Filter out spin indices (could get confused for nao == 2 but
     # such systems should never have frozen orbitals):
     ndim = sum(x == uagf2.hf.nao for x in arr.shape)
-    act = (Ellipsis,) + (slice(frozen, None),)*ndim
+    act = (Ellipsis,) + (slice(frozen[0], arr.shape[-1]-frozen[1]),)*ndim
 
     return arr[act]
 
@@ -85,8 +88,9 @@ class UAGF2:
     dm0 : (2,n,n) ndarray, optional
         initial density matrix for alpha and beta spins, if None, 
         use rhf.rdm1_mo, default None
-    frozen : int, optional
-        number of frozen core orbitals, default 0
+    frozen : int or tuple of (int, int), optional
+        number of frozen core orbitals, if tuple then second element 
+        defines number of frozen virtual orbitals, default 0
     verbose : bool, optional
         if True, print output log, default True
     maxiter : int, optional
@@ -189,7 +193,7 @@ class UAGF2:
         self.converged = False
         self.iteration = 0
 
-        nact = self.hf.nao - self.options['frozen']
+        nact = self.hf.nao - sum(self.options['frozen'])
         self.se = (aux.Aux([], [[],]*nact, chempot=self.hf.chempot[0]),
                    aux.Aux([], [[],]*nact, chempot=self.hf.chempot[1]))
         self._se_prev = (None, None)
@@ -206,6 +210,7 @@ class UAGF2:
         log.write('E(hf)  = %.12f\n' % self.hf.e_tot, self.verbose)
         log.write('<S^2> = %.6f\n' % self.hf.spin_square[0], self.verbose)
         log.write('nao = %d\n' % self.hf.nao, self.verbose)
+        log.write('nfrozen = (%d, %d)\n' % self.options['frozen'], self.verbose)
         log.write('nmom = (%s, %s)\n' % self.nmom, self.verbose)
 
         self.run_mp2()

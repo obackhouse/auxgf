@@ -51,6 +51,9 @@ def _set_options(**kwargs):
         'os_factor' : options['os_factor'],
     }
 
+    if not isinstance(options['frozen'], tuple):
+        options['frozen'] = (options['frozen'], 0)
+
     return options
 
 
@@ -63,7 +66,7 @@ def _active(ragf2, arr):
     if not frozen:
         return arr
 
-    act = (slice(frozen, None),)*arr.ndim
+    act = (slice(frozen[0], arr.shape[0]-frozen[1]),)*arr.ndim
 
     return arr[act]
 
@@ -82,8 +85,9 @@ class RAGF2:
     dm0 : (n,n) ndarray, optional
         initial density matrix, if None, use rhf.rdm1_mo, default
         None
-    frozen : int, optional
-        number of frozen core orbitals, default 0
+    frozen : int or tuple of (int, int), optional
+        number of frozen core orbitals, if tuple then second element 
+        defines number of frozen virtual orbitals, default 0
     verbose : bool, optional
         if True, print output log, default True
     maxiter : int, optional
@@ -182,7 +186,7 @@ class RAGF2:
         self.converged = False
         self.iteration = 0
 
-        nact = self.hf.nao - self.options['frozen']
+        nact = self.hf.nao - sum(self.options['frozen'])
         self.se = aux.Aux([], [[],]*nact, chempot=self.hf.chempot)
         self._se_prev = None
 
@@ -197,7 +201,7 @@ class RAGF2:
         log.write('E(nuc) = %.12f\n' % self.hf.e_nuc, self.verbose)
         log.write('E(hf)  = %.12f\n' % self.hf.e_tot, self.verbose)
         log.write('nao = %d\n' % self.hf.nao, self.verbose)
-        log.write('nfrozen = %d\n' % self.options['frozen'], self.verbose)
+        log.write('nfrozen = (%d, %d)\n' % self.options['frozen'], self.verbose)
         log.write('nmom = (%s, %s)\n' % self.nmom, self.verbose)
 
         self.run_mp2()

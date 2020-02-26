@@ -89,8 +89,10 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     lumo = util.amin(e0[e0 >= chempot])
 
     frozen = options['frozen']
-    act = slice(frozen, None)
-    nelec_act = nelec - (frozen * 2)
+    if not isinstance(frozen, tuple):
+        frozen = (frozen, 0)
+    act = slice(frozen[0], fock.shape[-1]-frozen[1])
+    nelec_act = nelec - frozen[0] * 2
 
 
     def _diag_fock_ext(chempot):
@@ -226,8 +228,10 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
     lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
 
     frozen = options['frozen']
-    act = slice(frozen, None)
-    nelec_act = (nelec[0] - frozen, nelec[1] - frozen)
+    if not isinstance(frozen, tuple):
+        frozen = (frozen, 0)
+    act = slice(frozen[0], fock.shape[-1]-frozen[1])
+    nelec_act = (nelec[0] - frozen[0], nelec[1] - frozen[0])
 
 
     def _diag_fock_ext(chempot, ab):
