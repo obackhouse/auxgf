@@ -527,7 +527,7 @@ class Aux:
         return merge.aux_merge_exact(self, etol=etol, wtol=wtol)
 
 
-    def se_compress(self, h_phys, nmom):
+    def se_compress(self, h_phys, nmom, run_anyway=False):
         ''' Compresses the auxiliaries via the associated self-energy.
             Compression is performed out-of-place.
 
@@ -537,6 +537,9 @@ class Aux:
             physical space Hamiltonian
         nmom : int
             number of moments
+        run_anyway : bool, optional
+            if number of resulting auxiliaries will be more than the
+            current number, run the function anyway, default False
 
         Returns
         -------
@@ -544,12 +547,16 @@ class Aux:
             reduced auxiliaries
         '''
 
+        if not run_anyway:
+            if 2*self.nphys*(nmom+1) > self.naux:
+                return self
+
         red = setrunc.run(self, h_phys, nmom)
 
         return red
 
 
-    def gf_compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0):
+    def gf_compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0, run_anyway=False):
         ''' Compresses the auxiliaries via the associated Green's 
             function. Compression is performed out-of-place.
 
@@ -565,12 +572,19 @@ class Aux:
             inverse temperature, required for `method='legendre'`
         chempot : float, optional
             chemical potential, required for `method='legendre'`
+        run_anyway : bool, optional
+            if number of resulting auxiliaries will be more than the
+            current number, run the function anyway, default False
 
         Returns
         -------
         red : Aux
             reduced auxiliaries
         '''
+
+        if not run_anyway:
+            if self.nphys*(2*nmom+1) > self.naux:
+                return self
 
         red = gftrunc.run(self, h_phys, nmom, method=method, 
                           beta=beta, chempot=chempot)
