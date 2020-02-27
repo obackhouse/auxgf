@@ -62,6 +62,24 @@ class Molecule:
         return self._pyscf.intor(*args, **kwargs)
 
     @property
+    def ncore(self):
+        ''' Gets the number of core orbitals.
+        '''
+
+        ncore = 0
+        key = [(4, 0), (12, 2), (30, 10), (38, 18), (48, 28), (56, 36)]
+
+        for charge in self.charges:
+            for np, ne in key:
+                if charge <= np:
+                    ncore += ne
+                    break
+            else:
+                raise ValueError
+
+        return ncore
+
+    @property
     def natom(self): 
         return self._pyscf.natm
 
@@ -100,6 +118,10 @@ class Molecule:
     @property
     def charge(self):
         return self._pyscf.charge
+
+    @property
+    def charges(self):
+        return self._pyscf.atom_charges()
 
     @property
     def spin(self):
