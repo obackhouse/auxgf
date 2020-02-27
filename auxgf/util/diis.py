@@ -33,7 +33,7 @@ class DIIS(lib.diis.DIIS):
         try:
             return super().update(x, xerr=xerr)
         except np.linalg.linalg.LinAlgError:
-            pass
+            return x
 
 
 
