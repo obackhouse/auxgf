@@ -4,3 +4,4 @@ tmp*
 __pycache__
 run.py
 *.prof
+data/
