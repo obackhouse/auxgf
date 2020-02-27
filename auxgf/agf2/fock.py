@@ -317,7 +317,7 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
 
     converged = rmsd < options['dtol'] and error_max < options['netol']
 
-    log.write('%52s\n' % ('-'*52), options['verbose'])
+    log.write('%65s\n' % ('-'*65), options['verbose'])
 
     se = (se[0].new(e0[0], v0[0], chempot=chempot[0]), 
           se[1].new(e0[1], v0[1], chempot=chempot[1]))

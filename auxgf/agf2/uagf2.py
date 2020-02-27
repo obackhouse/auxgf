@@ -391,7 +391,7 @@ class UAGF2:
     def energy_tot(self):
         etot = self.e_1body + self.e_2body
 
-        log.write('E(tot) = %12.f\n' % etot, self.verbose)
+        log.write('E(tot) = %.12f\n' % etot, self.verbose)
 
         return etot
 
