@@ -165,6 +165,7 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     naux = aux.naux
     nband = int(nblock * nphys)
 
+    #TODO: fix for naux < nphys
     v, coup = util.qr(aux.v.T, mode='reduced')
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:nphys] = v.T
@@ -265,8 +266,19 @@ def run(aux, h_phys, nmom, method='band'):
         t_vir = build_block_tridiag(m_vir, b_vir)
 
     else:
-        t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
-        t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
+        #FIXME
+
+        try:
+            t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
+        except ValueError:
+            m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
+            t_occ = build_block_tridiag(m_occ, b_occ)
+
+        try:
+            t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
+        except ValueError:
+            m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
+            t_vir = build_block_tridiag(m_vir, b_vir)
 
     e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
     e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
