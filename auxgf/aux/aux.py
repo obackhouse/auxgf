@@ -664,13 +664,13 @@ class Aux:
             (default 'e')
         '''
 
-        if by == 'e':
+        if which == 'e':
             mask = self.e.argsort()
-        elif by == 'w':
+        elif which == 'w':
             mask = self.w.argsort()
-        elif by == 'e,w':
+        elif which == 'e,w':
             mask = np.lexsort((self.w, self.e))
-        elif by == 'w,e':
+        elif which == 'w,e':
             mask = np.lexsort((self.e, self.w))
 
         self._ener = self._ener[mask]
