@@ -350,7 +350,7 @@ def normalise(array, shift=1e-20):
     array = np.asarray(array)
 
     n = norm(array, axis=0, keepdims=True)
-    n[np.absolute(n) < 0] = shift
+    n[np.absolute(n) == 0] = shift
 
     return array / n
 
