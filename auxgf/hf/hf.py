@@ -219,6 +219,9 @@ class HF:
     def eri_mo(self):
         return util.ao2mo(self.eri_ao, self.c, self.c, self.c, self.c)
 
+    def get_eri_mo(self, masks):
+        coeffs = [self.c[:,mask] for mask in masks]
+        return util.ao2mo(self.eri_ao, *coeffs)
 
 
 
