@@ -167,7 +167,7 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10, ss_factor=1.0, os_factor=
 
     va = np.sqrt(neg_factor) * (vija - vjia)
     vb = np.sqrt(pos_factor) * (vija + vjia)
-    vc = viia
+    vc = np.sqrt(os_factor) * viia
 
     e = np.concatenate((ea, eb, ec), axis=0)
     v = np.concatenate((va, vb, vc), axis=1)
