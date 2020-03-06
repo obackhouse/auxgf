@@ -57,7 +57,7 @@ def _set_options(**kwargs):
     return options
 
 
-def _active(uagf2, arr):
+def _active(uagf2, arr, ndim):
     ''' Returns the active space of an n-dimensional array.
     '''
 
@@ -67,12 +67,8 @@ def _active(uagf2, arr):
         return arr
 
     act_ = slice(frozen[0], arr.shape[-1]-frozen[1])
-
-    # If we ever have 3-dimensional arrays this won't work
-    if arr.ndim == 2 or arr.ndim == 3:
-        act = (Ellipsis, act_, act_)
-    elif arr.ndim >= 4:
-        act = (Ellipsis, act_, act_, act_, act_)
+    
+    act = (Ellipsis,) + (act_,)*ndim
 
     return arr[act]
 
@@ -222,14 +218,14 @@ class UAGF2:
     @util.record_time('build')
     def build(self):
         self._se_prev = (self.se[0].copy(), self.se[1].copy())
-        eri_act = _active(self, self.eri)
+        eri_act = _active(self, self.eri, 4)
 
         if self.iteration:
-            fock_act = _active(self, self.get_fock())
+            fock_act = _active(self, self.get_fock(), 2)
             sea, seb = aux.build_ump2_iter(self.se, fock_act, eri_act,
                                            **self.options['_build'])
         else:
-            e_act = _active(self, self.hf.e)
+            e_act = _active(self, self.hf.e, 1)
             sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'])
             seb = aux.build_ump2(e_act[::-1], eri_act[1][::-1], 
                                  **self.options['_build'])
@@ -265,7 +261,7 @@ class UAGF2:
             log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1],
                       self.verbose)
 
-        h1e_act = _active(self, self.h1e)
+        h1e_act = _active(self, self.h1e, 2)
         e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(h1e_act[0]))
         e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(h1e_act[1]))
 
@@ -291,7 +287,7 @@ class UAGF2:
         if nmom_gf is None and nmom_se is None:
             return
 
-        fock_act = _active(self, self.get_fock())
+        fock_act = _active(self, self.get_fock(), 2)
         sea = self.se[0].compress(fock_act[0], self.nmom,
                                   method=self.options['bath_type'],
                                   beta=self.options['bath_beta'])
@@ -351,7 +347,7 @@ class UAGF2:
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
-        e_act = _active(self, self.hf.e)
+        e_act = _active(self, self.hf.e, 1)
         emp2a = aux.energy.energy_mp2_aux(e_act[0], self.se[0])
         emp2b = aux.energy.energy_mp2_aux(e_act[1], self.se[1])
 
@@ -375,7 +371,7 @@ class UAGF2:
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        fock_act = _active(self, self.get_fock())
+        fock_act = _active(self, self.get_fock(), 2)
         gfa = aux.Aux(*self.se[0].eig(fock_act[0]), chempot=self.chempot[0])
         gfb = aux.Aux(*self.se[1].eig(fock_act[1]), chempot=self.chempot[0])
 
