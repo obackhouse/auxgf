@@ -66,10 +66,13 @@ def _active(uagf2, arr):
     if not frozen:
         return arr
 
-    # Filter out spin indices (could get confused for nao == 2 but
-    # such systems should never have frozen orbitals):
-    ndim = sum(x == uagf2.hf.nao for x in arr.shape)
-    act = (Ellipsis,) + (slice(frozen[0], arr.shape[-1]-frozen[1]),)*ndim
+    act_ = slice(frozen[0], arr.shape[-1]-frozen[1])
+
+    # If we ever have 3-dimensional arrays this won't work
+    if arr.ndim == 2 or arr.ndim == 3:
+        act = (Ellipsis, act_, act_)
+    elif arr.ndim >= 4:
+        act = (Ellipsis, act_, act_, act_, act_)
 
     return arr[act]
 

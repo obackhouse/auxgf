@@ -38,6 +38,8 @@ class Molecule:
         number of beta electrons
     nelec : int
         total number of electrons
+    ncore : int
+        number of core electrons
     e_nuc : float
         nuclear repulsion energy
     labels : list of str
