@@ -37,8 +37,8 @@ class CCSD:
         self.hf = hf
         self.run(*args, **kwargs)
 
-    def run(self):
-        ccsd = cc.CCSD(self.hf._pyscf)
+    def run(self, *args, **kwargs):
+        ccsd = cc.CCSD(self.hf._pyscf, *args, **kwargs)
         ccsd.run()
 
         self._pyscf = ccsd

@@ -35,8 +35,8 @@ class MP2:
         self.hf = hf
         self.run(*args, **kwargs)
 
-    def run(self):
-        mp2 = mp.MP2(self.hf._pyscf)
+    def run(self, *args, **kwargs):
+        mp2 = mp.MP2(self.hf._pyscf, *args, **kwargs)
         mp2.run()
 
         self._pyscf = mp2
