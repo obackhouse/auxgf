@@ -67,7 +67,10 @@ class RHF(hf.HF):
         eri = np.asarray(eri)
         eri = util.restore(8, eri, h1e.shape[0])
 
-        j, k = scf.hf._vhf.incore(eri, rdm1, hermi=1)
+        j = util.einsum('ijkl,kl->ij', eri, rdm1)
+        k = util.einsum('iljk,kl->ij', eri, rdm1)
+
+        #j, k = scf.hf._vhf.incore(eri, rdm1, hermi=1)
 
         fock = h1e + j - 0.5 * k
 

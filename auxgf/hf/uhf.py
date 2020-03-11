@@ -75,35 +75,40 @@ class UHF(hf.HF):
         h1e = np.asarray(h1e)
         rdm1 = np.asarray(rdm1)
 
-        if h1e.reshape((-1, n, n)).shape[0] == 1:
-            h1e = np.stack((h1e.reshape((n, n)),)*2, axis=0)
+        if h1e.ndim == 2:
+            h1e = np.stack((h1e, h1e))
 
-        if rdm1.reshape((-1, n, n)).shape[0] == 1:
-            rdm1 = np.stack((rdm1.reshape((n, n)),)*2, axis=0)
+        if rdm1.ndim == 2:
+            rdm1 = np.stack((rdm1, rdm1))
 
         if eri.ndim == 1 or eri.ndim == 4:
             eri_aa = eri_ab = eri_ba = eri_bb = eri
         else:
-            eri = eri.reshape((4, -1))
+            eri = eri.reshape((4, n, n, n, n))
             eri_aa = eri[0]
             eri_ab = eri[1]
             eri_ba = eri[2]
             eri_bb = eri[3]
 
-        eri_aa = util.restore(8, eri_aa, n)
-        eri_ab = util.restore(8, eri_ab, n)
-        eri_ba = util.restore(8, eri_ba, n)
-        eri_bb = util.restore(8, eri_bb, n)
+        j_a = util.einsum('ijkl,kl->ij', eri_aa, rdm1[0]) + util.einsum('ijkl,kl->ij', eri_ab, rdm1[1])
+        j_b = util.einsum('ijkl,kl->ij', eri_bb, rdm1[1]) + util.einsum('ijkl,kl->ij', eri_ba, rdm1[0])
+        k_a = util.einsum('iljk,kl->ij', eri_aa, rdm1[0])
+        k_b = util.einsum('iljk,kl->ij', eri_bb, rdm1[1])
 
-        j_a, k_a = scf.hf._vhf.incore(eri_aa, rdm1[0], hermi=1)
-        j_b, k_b = scf.hf._vhf.incore(eri_bb, rdm1[1], hermi=1)
+        #eri_aa = util.restore(8, eri_aa, n)
+        #eri_ab = util.restore(8, eri_ab, n)
+        #eri_ba = util.restore(8, eri_ba, n)
+        #eri_bb = util.restore(8, eri_bb, n)
 
-        if int(pyscf_version[2]) < 7:
-            j_a += scf.hf._vhf.incore(eri_ba, rdm1[1], hermi=1)[0]
-            j_b += scf.hf._vhf.incore(eri_ab, rdm1[0], hermi=1)[0] 
-        else:
-            j_a += scf.hf._vhf.incore(eri_ba, rdm1[1], hermi=1, with_k=False)[0]
-            j_b += scf.hf._vhf.incore(eri_ab, rdm1[0], hermi=1, with_k=False)[0]
+        #j_a, k_a = scf.hf._vhf.incore(eri_aa, rdm1[0], hermi=1)
+        #j_b, k_b = scf.hf._vhf.incore(eri_bb, rdm1[1], hermi=1)
+
+        #if int(pyscf_version[2]) < 7:
+        #    j_a += scf.hf._vhf.incore(eri_ab, rdm1[1], hermi=1)[0] 
+        #    j_b += scf.hf._vhf.incore(eri_ba, rdm1[0], hermi=1)[0]
+        #else:
+        #    j_a += scf.hf._vhf.incore(eri_ab, rdm1[1], hermi=1, with_k=False)[0]
+        #    j_b += scf.hf._vhf.incore(eri_ba, rdm1[0], hermi=1, with_k=False)[0]
 
         j = np.stack((j_a, j_b), axis=0)
         k = np.stack((k_a, k_b), axis=0)
