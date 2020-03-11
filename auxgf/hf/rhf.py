@@ -65,7 +65,7 @@ class RHF(hf.HF):
         '''
 
         eri = np.asarray(eri)
-        eri = util.restore(8, eri, h1e.shape[0])
+        #eri = util.restore(8, eri, h1e.shape[0])
 
         j = util.einsum('ijkl,kl->ij', eri, rdm1)
         k = util.einsum('iljk,kl->ij', eri, rdm1)
