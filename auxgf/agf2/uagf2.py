@@ -226,9 +226,11 @@ class UAGF2:
                                            **self.options['_build'])
         else:
             e_act = _active(self, self.hf.e, 1)
-            sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'])
+            sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'],
+                                 chempot=self.chempot[0])
             seb = aux.build_ump2(e_act[::-1], eri_act[1][::-1], 
-                                 **self.options['_build'])
+                                 **self.options['_build'], 
+                                 chempot=self.chempot[1])
 
         if self.options['use_merge']:
             sea = sea.merge(etol=self.options['etol'], 

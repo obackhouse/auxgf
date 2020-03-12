@@ -213,12 +213,12 @@ class RAGF2:
         eri_act = _active(self, self.eri)
 
         if self.iteration:
-            fock_act = _active(self, self.get_fock())
             self.se = aux.build_rmp2_iter(self.se, fock_act, eri_act,
                                           **self.options['_build'])
         else:
             e_act = _active(self, self.hf.e)
-            self.se = aux.build_rmp2(e_act, eri_act, **self.options['_build'])
+            self.se = aux.build_rmp2(e_act, eri_act, **self.options['_build'], 
+                                     chempot=self.chempot)
         
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'], 
