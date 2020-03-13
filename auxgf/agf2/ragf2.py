@@ -213,6 +213,7 @@ class RAGF2:
         eri_act = _active(self, self.eri)
 
         if self.iteration:
+            fock_act = _active(self, self.get_fock())
             self.se = aux.build_rmp2_iter(self.se, fock_act, eri_act,
                                           **self.options['_build'])
         else:
