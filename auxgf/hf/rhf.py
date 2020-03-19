@@ -45,18 +45,16 @@ class RHF(hf.HF):
         lumo = util.amin(self.e[self.occ == 0])
         return 0.5 * (homo + lumo)
 
-    @staticmethod
-    def get_fock(h1e, rdm1, eri):
+    def get_fock(self, rdm1, basis='ao'):
         ''' Builds the Fock matrix according to the RHF functional.
 
         Parameters
         ----------
-        h1e : (n,n) array
-            one-electron core Hamiltonian
         rdm1 : (n,n) array
-            one-body reduced density matrix
-        eri : (n,n,n,n) array
-            electronic repulsion integrals
+            one-body reduced density matrix, in atomic-orbital basis
+        basis : str, optional
+            input basis of `rdm1`, and output basis of `fock`, 
+            default 'ao'
 
         Returns
         -------
@@ -64,20 +62,16 @@ class RHF(hf.HF):
             Fock matrix
         '''
 
-        eri = np.asarray(eri)
-        #eri = util.restore(8, eri, h1e.shape[0])
+        c = self.c if basis == 'mo' else np.eye(self.nao)
 
-        j = util.einsum('ijkl,kl->ij', eri, rdm1)
-        k = util.einsum('iljk,kl->ij', eri, rdm1)
-
-        #j, k = scf.hf._vhf.incore(eri, rdm1, hermi=1)
-
-        fock = h1e + j - 0.5 * k
+        dm = util.einsum('ij,pi,qj->pq', rdm1, c, c)
+        fock = self._pyscf.get_fock(dm=dm)
+        fock = util.einsum('pq,pi,qj->ij', fock, c, c)
 
         return fock
 
     @staticmethod
-    def energy_1body(h1e, rdm1, fock=None, eri=None):
+    def energy_1body(h1e, rdm1, fock):
         ''' Calculates the energy according to the RHF density. Basis
             of input arrays should match.
 
@@ -87,27 +81,14 @@ class RHF(hf.HF):
             one-electron core Hamiltonian
         rdm1 : (n,n) array
             one-body reduced density matrix
-        fock : (n,n) array, optional
+        fock : (n,n) array
             Fock matrix
-        eri : (n,n,n,n) array, optional
-            electronic repulsion integrals
 
         Returns
         -------
         e_1body : float
             one-body energy
-
-        Raises
-        ------
-        ValueError
-            neither `fock` nor `eri` were passed as keyword arguments
         '''
-
-        if fock is None and eri is not None:
-            fock = RHF.get_fock(h1e, rdm1, eri)
-        elif fock is None and eri is None:
-            raise ValueError('auxgf.hf.rhf.energy_1body requires either '
-                             'fock or eri as keyword arguments.')
 
         e_1body = 0.5 * np.sum(rdm1 * (h1e + fock))
 

@@ -4,7 +4,7 @@
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-from auxgf import util, hf
+from auxgf import util
 from auxgf.util import types, log
 
 
@@ -31,7 +31,7 @@ def _get_fock_ext(fock, e, v, chempot):
     return np.block([[fock, v], [v.T, np.diag(e-chempot)]])
 
 
-def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
+def fock_loop_rhf(se, hf, rdm, **kwargs):
     ''' Performs the self-consistent loop of the Fock matrix in
         auxiliary GF2 for restricted wavefunctions.
 
@@ -39,15 +39,10 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     ----------
     se : Aux
         object containing the self-energy auxiliary space
-    h1e : (n,n) ndarray
-        one-electron Hamiltonian (typically as the Fock matrix in
-        the physical space)
+    hf : hf.RHF object
+        Hartree-Fock object
     rdm : (n,n) ndarray
         initial reduced density matrix
-    eri : (n,n,n,n) ndarray
-        two-electron repulsion integrals
-    nelec : int
-        total number of electrons (including frozen)
     diis_space : int, optional  
         size of DIIS space, default 8
     netol : int, optional
@@ -79,7 +74,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
 
     diis = util.DIIS(space=options['diis_space'])
 
-    fock = hf.rhf.RHF.get_fock(h1e, rdm, eri)
+    fock = hf.get_fock(rdm, basis='mo')
 
     e0 = se.e.copy()
     v0 = se.v.copy()
@@ -92,7 +87,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     if not isinstance(frozen, tuple):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
-    nelec_act = nelec - frozen[0] * 2
+    nelec_act = hf.nelec - frozen[0] * 2
 
 
     def _diag_fock_ext(chempot):
@@ -132,7 +127,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
 
             c_occ = v[:nphys, w < chempot]
             rdm[act,act] = np.dot(c_occ, c_occ.T) * 2
-            fock = hf.rhf.RHF.get_fock(h1e, rdm, eri)
+            fock = hf.get_fock(rdm, basis='mo')
 
             if niter > 1:
                 fock = diis.update(fock)
@@ -165,7 +160,7 @@ def fock_loop_rhf(se, h1e, rdm, eri, nelec, **kwargs):
     return se, rdm, converged
 
 
-def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
+def fock_loop_uhf(se, hf, rdm, **kwargs):
     ''' Performs the self-consistent loop of the Fock matrix in
         auxiliary GF2 for unrestricted wavefunctions.
 
@@ -174,16 +169,10 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
     se : tuple of (Aux, Aux)
         object containing the self-energy auxiliary space for alpha
         and beta spins
-    h1e : (2,n,n) ndarray
-        one-electron Hamiltonian (typically as the Fock matrix in
-        the physical space) for alpha and beta spins, if `ndim==2`
-        then spin symmetry is assumed in the Hamiltonian
+    hf : hf.UHF object
+        Hartree-Fock object
     rdm : (2,n,n) ndarray
         initial reduced density matrix for alpha and beta spins
-    eri : (2,2,n,n,n,n) ndarray
-        two-electron repulsion integrals for alpha and beta spins
-    nelec : int
-        number of electrons for alpha and beta spins
     diis_space : int, optional  
         size of DIIS space, default 8
     netol : int, optional
@@ -216,7 +205,7 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
 
     diis = util.DIIS(space=options['diis_space'])
 
-    fock = hf.uhf.UHF.get_fock(h1e, rdm, eri)
+    fock = hf.get_fock(rdm, basis='mo')
 
     e0 = (se[0].e.copy(), se[1].e.copy())
     v0 = (se[0].v.copy(), se[1].v.copy())
@@ -231,7 +220,7 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
     if not isinstance(frozen, tuple):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
-    nelec_act = (nelec[0] - frozen[0], nelec[1] - frozen[0])
+    nelec_act = (hf.nalph - frozen[0], hf.nbeta - frozen[0])
 
 
     def _diag_fock_ext(chempot, ab):
@@ -290,7 +279,7 @@ def fock_loop_uhf(se, h1e, rdm, eri, nelec, **kwargs):
             rdm_b = np.dot(c_occ_b, c_occ_b.T)
             rdm[:,act,act] = np.stack((rdm_a, rdm_b))
 
-            fock = hf.uhf.UHF.get_fock(h1e, rdm, eri)
+            fock = hf.get_fock(rdm, basis='mo')
 
             if niter > 1:
                 fock = diis.update(fock)

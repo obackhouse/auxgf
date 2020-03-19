@@ -230,8 +230,7 @@ class RAGF2:
 
     @util.record_time('fock')
     def fock_loop(self):
-        se, rdm1, converged = fock_loop_rhf(self.se, self.h1e, self.rdm1,
-                                            self.eri, self.nelec, 
+        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1,
                                             **self.options['_fock_loop'])
 
         if converged:
@@ -300,7 +299,7 @@ class RAGF2:
         if rdm1 is None:
             rdm1 = self.rdm1
 
-        fock = self.hf.get_fock(self.h1e, rdm1, self.eri)
+        fock = self.hf.get_fock(rdm1, basis='mo')
 
         return fock
 
@@ -317,7 +316,7 @@ class RAGF2:
     @util.record_time('energy')
     @util.record_energy('1b')
     def energy_1body(self):
-        e1b = self.hf.energy_1body(self.h1e, self.rdm1, eri=self.eri)
+        e1b = self.hf.energy_1body(self.h1e, self.rdm1, self.get_fock())
         e1b += self.hf.mol.e_nuc
 
         log.write('E(1b)  = %.12f\n' % e1b, self.verbose)
