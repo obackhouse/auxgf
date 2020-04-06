@@ -312,7 +312,7 @@ class RAGWA:
     @util.record_time('energy')
     @util.record_energy('1b')
     def energy_1body(self):
-        e1b = self.hf.energy_1body(self.h1e, self.rdm1, eri=self.eri)
+        e1b = self.hf.energy_1body(self.h1e, self.rdm1, self.get_fock())
         e1b += self.hf.mol.e_nuc
 
         log.write('E(1b)  = %.12f\n' % e1b, self.verbose)
@@ -390,7 +390,7 @@ class RAGWA:
         if rdm1 is None:
             rdm1 = self.rdm1
 
-        return self.hf.get_fock(rdm1)
+        return self.hf.get_fock(rdm1, basis='mo')
 
     
     @property
