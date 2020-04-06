@@ -9,6 +9,7 @@ modules = OrderedDict([
     ('util', ['ao2mo', 'linalg']),
     ('mol', ['mol']),
     ('hf', ['rhf', 'uhf']),
+    ('dft', ['rdft', 'udft']),
     ('mp', ['mp2', 'oomp2']),
     ('cc', ['ccsd']),
     ('aux', ['aux', 'build', 'energy']),
