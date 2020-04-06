@@ -25,12 +25,9 @@ def build_block_tridiag(m, b):
         block tridiagonal matrix
     '''
 
-    m = np.asarray(m, dtype=types.float64)
-    b = np.asarray(b, dtype=types.float64)
+    k = len(b)
 
-    k = b.shape[0]
-
-    if not m.shape[0] == k+1:
+    if len(m) != k+1:
         raise ValueError('There should be one more on-diagonal block '
                          'than off-diagonal blocks.')
 
@@ -137,6 +134,14 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         return m, b, v
 
 
+def block_lanczos_1mom(aux, h_phys, **kwargs):
+    ''' The above function simplifies significantly in the case of nmom=1.
+    '''
+    v, b = util.qr(aux.v.T, mode='reduced')
+    m = util.einsum('ip,i,iq->pq', v, aux.e, v)
+    return [h_phys, m], [b,]
+
+
 def band_lanczos(aux, h_phys, nblock, **kwargs):
     ''' Band diagonalization of the environment of a Hamiltonain
         spanning the physical and auxiliary space, using the block
@@ -165,7 +170,6 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     naux = aux.naux
     nband = int(nblock * nphys)
 
-    #TODO: fix for naux < nphys
     v, coup = util.qr(aux.v.T, mode='reduced')
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:nphys] = v.T
@@ -258,7 +262,14 @@ def run(aux, h_phys, nmom, method='band'):
 
     #TODO: debugging mode which checks the moments
 
-    if method == 'block':
+    if nmom == 1:
+        m_occ, b_occ = block_lanczos_1mom(aux.as_occupied(), h_phys)
+        m_vir, b_vir = block_lanczos_1mom(aux.as_virtual(), h_phys)
+
+        t_occ = build_block_tridiag(m_occ, b_occ)
+        t_vir = build_block_tridiag(m_vir, b_vir)
+
+    elif method == 'block':
         m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
         m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
 
@@ -266,19 +277,8 @@ def run(aux, h_phys, nmom, method='band'):
         t_vir = build_block_tridiag(m_vir, b_vir)
 
     else:
-        #FIXME
-
-        try:
-            t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
-        except ValueError:
-            m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
-            t_occ = build_block_tridiag(m_occ, b_occ)
-
-        try:
-            t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
-        except ValueError:
-            m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
-            t_vir = build_block_tridiag(m_vir, b_vir)
+        t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
+        t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
 
     e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
     e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
