@@ -19,6 +19,7 @@ def _set_options(**kwargs):
                 'etol' : 1e-6,
                 'wtol' : 1e-10,
                 'damping' : 0.5,
+                'delay_damping' : 0,
                 'dtol' : 1e-8,
                 'diis_space' : 8,
                 'fock_maxiter' : 50,
@@ -101,6 +102,9 @@ class RAGF2:
         self-energy damping factor via
             S(i) = damping * S(i) + (1-damping) * S(i-1),
         default 0.5
+    delay_damping : int, optional
+        skip this number of iterations before starting to damp,
+        default 0
     dtol : float, optional
         maximum difference in density matrices at convergence in the
         Fock loop, default 1e-8
@@ -242,7 +246,8 @@ class RAGF2:
             log.write('Chemical potential = %.6f\n' % self.chempot,
                       self.verbose)
 
-        e_qmo = util.eigvalsh(se.as_hamiltonian(_active(self, self.h1e)))
+        fock_act = _active(self, self.get_fock(rdm1=rdm1))
+        e_qmo = util.eigvalsh(se.as_hamiltonian(fock_act))
 
         self.se = se
         self.rdm1 = rdm1
@@ -277,6 +282,9 @@ class RAGF2:
 
     def damp(self):
         if self.options['damping'] == 0.0:
+            return
+
+        if self.iteration <= self.options['delay_damping']:
             return
 
         fcurr = np.sqrt(1.0 - self.options['damping'])

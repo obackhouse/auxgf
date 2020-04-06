@@ -19,6 +19,7 @@ def _set_options(**kwargs):
                 'etol' : 1e-6,
                 'wtol' : 1e-10,
                 'damping' : 0.5,
+                'delay_damping' : 0,
                 'dtol' : 1e-8,
                 'diis_space' : 8,
                 'fock_maxiter' : 50,
@@ -262,9 +263,9 @@ class UAGF2:
             log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1],
                       self.verbose)
 
-        h1e_act = _active(self, self.h1e, 2)
-        e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(h1e_act[0]))
-        e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(h1e_act[1]))
+        fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
+        e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(fock_act[0]))
+        e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(fock_act[1]))
 
         self.se = se
         self.rdm1 = rdm1
@@ -310,6 +311,9 @@ class UAGF2:
 
     def damp(self):
         if self.options['damping'] == 0.0:
+            return
+
+        if self.iteration <= self.options['delay_damping']:
             return
 
         fcurr = np.sqrt(1.0 - self.options['damping'])
