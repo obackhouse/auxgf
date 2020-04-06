@@ -390,7 +390,7 @@ class RAGWA:
         if rdm1 is None:
             rdm1 = self.rdm1
 
-        return self.hf.get_fock(self.h1e, rdm1, self.eri)
+        return self.hf.get_fock(rdm1)
 
     
     @property
