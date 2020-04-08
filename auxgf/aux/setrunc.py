@@ -172,7 +172,7 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
 
     v, coup = util.qr(aux.v.T, mode='reduced')
     q = np.zeros((nband, naux), dtype=np.float64)
-    q[:nphys] = v.T
+    q[:min(nphys, naux)] = v.T
     t = np.zeros((nband, nband), dtype=np.float64)
 
     for i in range(nband):
@@ -196,7 +196,7 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
         assert np.allclose(np.dot(q, aux.e[:,None] * q.T), t)
 
     coup_block = np.zeros((nband, nphys), dtype=np.float64)
-    coup_block[:nphys] = coup
+    coup_block[:min(nphys, naux)] = coup
 
     t = np.block([[h_phys, coup_block.T], [coup_block, t]])
 
