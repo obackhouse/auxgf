@@ -65,8 +65,8 @@ def build_mp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
         elif np.asarray(eri).ndim == 6:
             a = build_ump2(e, eri[0], chempot=chempot, wtol=wtol,
                            ss_factor=ss_factor, os_factor=os_factor)
-            b = build_ump2(e[::-1], eri[1][::-1], chempot=chempot, wtol=wtol,
-                           ss_factor=ss_factor, os_factor=os_factor)
+            b = build_ump2(e[::-1], eri[1][::-1], chempot=chempot[::-1], 
+                           wtol=wtol, ss_factor=ss_factor, os_factor=os_factor)
             return a, b
 
 
@@ -93,6 +93,8 @@ def build_mp2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.0
     poles : Aux
         auxiliaries
     '''
+
+    raise NotImplementedError("Use build_rmp2_iter and build_ump2_iter")
 
     if np.asarray(e).ndim == 1:
         return build_rmp2_iter(aux, h_phys, eri_mo, wtol=wtol,
