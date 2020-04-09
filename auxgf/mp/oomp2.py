@@ -22,7 +22,6 @@ class OOMP2:
         self.e_prev = 0.0
 
         self.setup()
-        self.run()
 
     def setup(self):
         self.eri_ao = util.spin_block(self.hf.eri_ao, self.hf.eri_ao)
@@ -124,6 +123,7 @@ class OOMP2:
             if abs(self.e_tot - e_prev) < self.etol:
                 break
 
+        return self
 
     @property
     def e_tot(self):

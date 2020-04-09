@@ -3,7 +3,7 @@ import numpy as np
 from auxgf import mol, hf, aux, util, grids
 
 
-rhf = hf.RHF(mol.Molecule(atoms='H 0 0 0; Li 0 0 1.64', basis='sto3g'))
+rhf = hf.RHF(mol.Molecule(atoms='H 0 0 0; Li 0 0 1.64', basis='sto3g')).run()
 
 eri = rhf.eri_mo
 e = rhf.e

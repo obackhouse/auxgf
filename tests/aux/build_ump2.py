@@ -6,7 +6,7 @@ from auxgf import mol, hf, aux, util, grids
 # if copying from this file, note that this only builds alpha self-energy
 
 
-uhf = hf.UHF(mol.Molecule(atoms='H 0 0 0; Li 0 0 1.64', basis='sto3g'))
+uhf = hf.UHF(mol.Molecule(atoms='H 0 0 0; Li 0 0 1.64', basis='sto3g')).run()
 
 eri = uhf.eri_mo
 e = uhf.e
@@ -43,7 +43,7 @@ assert np.allclose(se_mp2_ref, se_mp2, atol=1e-07)
 
 
 
-uhf = hf.UHF(mol.Molecule(atoms='H 0 0 0; Be 0 0 1.00', basis='sto3g', spin=1))
+uhf = hf.UHF(mol.Molecule(atoms='H 0 0 0; Be 0 0 1.00', basis='sto3g', spin=1)).run()
 
 eri = uhf.eri_mo
 e = uhf.e

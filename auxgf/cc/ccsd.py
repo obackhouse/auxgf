@@ -33,15 +33,13 @@ class CCSD:
         parameters for arguments
     '''
 
-    def __init__(self, hf, *args, **kwargs):
+    def __init__(self, hf, **kwargs):
         self.hf = hf
-        self.run(*args, **kwargs)
+        self._pyscf = cc.CCSD(self.hf._pyscf, **kwargs)
 
-    def run(self, *args, **kwargs):
-        ccsd = cc.CCSD(self.hf._pyscf, *args, **kwargs)
-        ccsd.run()
-
-        self._pyscf = ccsd
+    def run(self, **kwargs):
+        self._pyscf.run(**kwargs)
+        return self
 
     @property
     def e_tot(self):

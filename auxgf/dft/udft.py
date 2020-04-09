@@ -33,11 +33,12 @@ class UDFT(uhf.UHF):
     '''
 
     def __init__(self, mol, **kwargs):
-        kwargs['method'] = _dft.UKS
+        self.disable_omp = False
+        self.check_stability = False
+        self.stability_cycles = 10
 
-        # super().__init__ would reset the method string, so instead
         self.mol = mol
-        self.run(**kwargs)
+        self._pyscf = _dft.UKS(self.mol._pyscf, **kwargs)
 
     @classmethod
     def from_pyscf(cls, ks):

@@ -38,11 +38,12 @@ class RDFT(rhf.RHF):
         if mol.nelec % 2:
             raise RuntimeError('dft.RDFT requires a closed-shell system.')
 
-        kwargs['method'] = _dft.RKS
+        self.disable_omp = False
+        self.check_stability = False
+        self.stability_cycles = 10
 
-        # super().__init__ would reset the method string, so instead
         self.mol = mol
-        self.run(**kwargs)
+        self._pyscf = _dft.RKS(self.mol._pyscf, **kwargs)
 
     @classmethod
     def from_pyscf(cls, ks):

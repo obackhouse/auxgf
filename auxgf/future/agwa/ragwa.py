@@ -379,7 +379,7 @@ class RAGWA:
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 
-        return self.converged
+        return self
 
 
     def get_fock(self, rdm1=None):

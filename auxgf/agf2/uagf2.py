@@ -443,7 +443,7 @@ class UAGF2:
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 
-        return self.converged
+        return self
 
 
     @property

@@ -76,18 +76,24 @@ class HF:
     Methods
     -------
     run(**kwargs)
-        runs the calculation (performed automatically), see class
-        parameters for arguments.
+        runs the calculation, see class parameters for arguments.
     '''
 
     def __init__(self, mol, **kwargs):
         self.mol = mol
-        self.run(**kwargs)
+
+        method = kwargs.pop('method', None)
+        if method is None:
+            method = scf.UHF if self.nelec % 2 else scf.RHF
+
+        self.disable_omp = kwargs.pop('disable_omp', True)
+        self.check_stability = kwargs.pop('check_stability', True)
+        self.stability_cycles = kwargs.pop('stability_cycles', 10)
+
+        self._pyscf = method(self.mol._pyscf, **kwargs)
 
     def run(self, **kwargs):
-        disable_omp = kwargs.pop('disable_omp', True)
-
-        if disable_omp:
+        if self.disable_omp:
             with lib.with_omp_threads(1):
                 self._run(**kwargs)
         else:
@@ -96,36 +102,29 @@ class HF:
         if not self._pyscf.converged:
             log.warn('%s did not converged.' % self.__class__.__name__)
 
+        return self
+
     def _run(self, **kwargs):
-        method = kwargs.pop('method', None)
-        check_stability = kwargs.pop('check_stability', True)
-        stability_cycles = kwargs.pop('stability_cycles', 10)
+        self._pyscf.run(**kwargs)
 
-        if method is None:
-            method = scf.UHF if self.nelec % 2 else scf.RHF
-
-        hf = method(self.mol._pyscf)
-        hf.run(**kwargs)
-
-        if check_stability:
-            for niter in range(1, stability_cycles+1):
-                stability = hf.stability()
+        if self.check_stability:
+            for niter in range(1, self.stability_cycles+1):
+                stability = self._pyscf.stability()
 
                 if isinstance(stability, tuple):
                     internal, external = stability
                 else:
                     internal = stability
 
-                if np.allclose(internal, hf.mo_coeff):
-                    if niter == stability_cycles:
+                if np.allclose(internal, self._pyscf.mo_coeff):
+                    if niter == self.stability_cycles:
                         log.warn('Internal stability in HF was not resolved.')
                     break
                 else:
-                    rdm1 = hf.make_rdm1(internal, hf.mo_occ)
+                    rdm1 = self._pyscf.make_rdm1(internal, self._pyscf.mo_occ)
 
-                hf.scf(dm0=rdm1)
+                self._pyscf.scf(dm0=rdm1)
 
-        self._pyscf = hf
         self._eri_ao = util.restore(1, self.mol._pyscf.intor('int2e'), self.nao)
     
     @property

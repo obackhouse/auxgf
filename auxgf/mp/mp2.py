@@ -27,19 +27,16 @@ class MP2:
     Methods
     -------
     run(*args, **kwargs)
-        runs the calculation (performed automatically), see class
-        parameters for arguments.
+        runs the calculation, see class parameters for arguments.
     '''
 
-    def __init__(self, hf, *args, **kwargs):
+    def __init__(self, hf, **kwargs):
         self.hf = hf
-        self.run(*args, **kwargs)
+        self._pyscf = mp.MP2(self.hf._pyscf, **kwargs)
 
-    def run(self, *args, **kwargs):
-        mp2 = mp.MP2(self.hf._pyscf, *args, **kwargs)
-        mp2.run()
-
-        self._pyscf = mp2
+    def run(self, **kwargs):
+        self._pyscf.run(**kwargs)
+        return self
 
     @property
     def e_tot(self):
