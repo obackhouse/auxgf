@@ -22,3 +22,10 @@ Installation
  - `cd auxgf`
  - `python tests/test.py`
 
+Examples
+--------
+
+The `examples` directory contains a number of examples for calculations using the auxgf package. 
+
+One may obtain a list of descriptions for each script using `head examples/*.py --lines=1`.
+
