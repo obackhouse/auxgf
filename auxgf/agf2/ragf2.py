@@ -261,9 +261,6 @@ class RAGF2:
 
     @util.record_time('merge')
     def merge(self):
-        # Performs the exact merge of degenerate states - in some
-        # cases this may be slower?
-
         nmom_gf, nmom_se = self.nmom
 
         if nmom_gf is None and nmom_se is None:

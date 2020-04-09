@@ -262,7 +262,10 @@ def run(aux, h_phys, nmom, method='band'):
 
     #TODO: debugging mode which checks the moments
 
-    if nmom == 1:
+    if nmom == 0:
+        return aux.new([], [[],]*aux.nphys)
+
+    elif nmom == 1:
         m_occ, b_occ = block_lanczos_1mom(aux.as_occupied(), h_phys)
         m_vir, b_vir = block_lanczos_1mom(aux.as_virtual(), h_phys)
 
