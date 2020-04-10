@@ -41,6 +41,12 @@ class CCSD:
         self._pyscf.run(**kwargs)
         return self
 
+    def ipccsd(self):
+        return self._pyscf.ipccsd()
+
+    def eaccsd(self):
+        return self._pyscf.eaccsd()
+
     @property
     def e_tot(self):
         return self._pyscf.e_tot
