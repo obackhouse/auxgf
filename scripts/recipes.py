@@ -49,7 +49,7 @@ def build_rmp2_aux(atoms, basis, charge=0, spin=0):
     '''
 
     mol = auxgf.mol.Molecule(atoms=atoms, basis=basis, charge=charge, spin=spin)
-    rhf = auxgf.hf.RHF(mol)
+    rhf = auxgf.hf.RHF(mol).run()
     se = auxgf.aux.build_mp2(rhf.e, rhf.eri_mo, rhf.chempot)
     return se
 
@@ -60,7 +60,7 @@ def build_ump2_aux(atoms, basis, charge=0, spin=0):
     '''
 
     mol = auxgf.mol.Molecule(atoms=atoms, basis=basis, charge=charge, spin=spin)
-    uhf = auxgf.hf.UHF(mol)
+    uhf = auxgf.hf.UHF(mol).run()
     se = auxgf.aux.build_mp2(uhf.e, uhf.eri_mo, uhf.chempot)
     return se
 
