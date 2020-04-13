@@ -10,7 +10,6 @@ import os
 from auxgf.util import types, mkl
 
 use_pyscf_einsum = False
-use_scipy_qr = True
 
 
 ''' Wrapper to clear up `optimize` keywords inconsistencies between
