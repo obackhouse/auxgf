@@ -101,8 +101,10 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         if kwargs.get('reorthog', True):
             r -= np.dot(v[-1], np.dot(v[-1].T, r))
 
-        vnext, b[j] = util.qr(r, mode='reduced')
+        #vnext, b[j] = util.qr(r, mode='reduced')
         #vnext, b[j] = util.qr_unsafe(r)
+        vnext, b[j] = scipy.linalg.qr(r, mode='economic', overwrite_a=True, 
+                                      check_finite=False)
 
         if not keep_v:
             v = [v[-1], vnext]
@@ -137,7 +139,8 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
 def block_lanczos_1mom(aux, h_phys, **kwargs):
     ''' The above function simplifies significantly in the case of nmom=1.
     '''
-    v, b = util.qr(aux.v.T, mode='reduced')
+    #v, b = util.qr(aux.v.T, mode='reduced')
+    v, b = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
     m = util.einsum('ip,i,iq->pq', v, aux.e, v)
     return [h_phys, m], [b,]
 
@@ -170,7 +173,9 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     naux = aux.naux
     nband = int(nblock * nphys)
 
-    v, coup = util.qr(aux.v.T, mode='reduced')
+    #v, coup = util.qr(aux.v.T, mode='reduced')
+    v, coup = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
+
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:min(nphys, naux)] = v.T
     t = np.zeros((nband, nband), dtype=np.float64)
