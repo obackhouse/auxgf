@@ -17,7 +17,7 @@ def _set_options(**kwargs):
                 'verbose' : True,
                 'maxiter' : 50,
                 'etol' : 1e-6,
-                'wtol' : 1e-10,
+                'wtol' : 1e-12,
                 'damping' : 0.0,
                 'delay_damping' : 0,
                 'dtol' : 1e-8,
@@ -97,7 +97,7 @@ class RAGF2:
         maximum difference in subsequent energies at convergence,
         default 1e-6
     wtol : float, optional
-        minimum pole weight to be considered zero, default 1e-10
+        minimum pole weight to be considered zero, default 1e-12
     damping : float, optional
         self-energy damping factor via
             S(i) = damping * S(i) + (1-damping) * S(i-1),

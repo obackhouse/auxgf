@@ -70,7 +70,7 @@ def kernel(e, nmom, method='power', beta=100, chempot=0.0):
     return f_en
 
 
-def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-10, chempot=0.0):
+def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-12, chempot=0.0):
     ''' Builds the vectors which project the auxiliary space into a
         compressed one with consistent moments up to order `nmom`.
 

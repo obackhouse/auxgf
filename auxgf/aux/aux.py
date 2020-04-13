@@ -82,7 +82,7 @@ class Aux:
         diagonalises `as_hamiltonian`
     moment(n)
         builds the nth moment of the spectral distribution
-    merge(etol=1e-10, wtol=1e-10)
+    merge(etol=1e-10, wtol=1e-12)
         in-principle exact reduction of the auxiliaries removing
         linear dependencies and poles with no weight on the physical
         system
@@ -507,7 +507,7 @@ class Aux:
         return np.squeeze(moms)
 
 
-    def merge(self, etol=1e-10, wtol=1e-10):
+    def merge(self, etol=1e-10, wtol=1e-12):
         ''' Performs an in-principle exact reduction of the auxiliaries
             which have linear dependencies or negligible weight.
 
@@ -516,7 +516,7 @@ class Aux:
         etol : float, optional
             maximum difference in degenerate energies (default 1e-10)
         wtol : float, optional
-            maximum weight to be considered negligible (default 1e-10)
+            maximum weight to be considered negligible (default 1e-12)
 
         Returns
         -------

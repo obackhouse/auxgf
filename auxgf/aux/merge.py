@@ -7,7 +7,7 @@ from auxgf import util
 from auxgf.util import types
 
 
-def aux_merge_exact(aux, etol=1e-10, wtol=1e-10):
+def aux_merge_exact(aux, etol=1e-10, wtol=1e-12):
     ''' Performs an in-principle exact reduction of the auxiliaries
         which have linear dependencies or negligible weight.
 
@@ -18,7 +18,7 @@ def aux_merge_exact(aux, etol=1e-10, wtol=1e-10):
     etol : float, optional
         maximum difference in degenerate energies (default 1e-10)
     wtol : float, optional
-        maximum weight to be considered negligible (default 1e-10)
+        maximum weight to be considered negligible (default 1e-12)
 
     Returns
     -------

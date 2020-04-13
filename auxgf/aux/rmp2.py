@@ -36,7 +36,7 @@ def _parse_rhf(e, eri, chempot):
     return eo, ev, xija, xabi
 
 
-def make_coups_inner(v, wtol=1e-10):
+def make_coups_inner(v, wtol=1e-12):
     ''' Builds a set of couplings using the eigenvectors of the inner
         product of the space spanned by a set of vectors.
 
@@ -71,7 +71,7 @@ def make_coups_inner(v, wtol=1e-10):
     return coup
 
 
-def make_coups_outer(v, s=None, wtol=1e-10):
+def make_coups_outer(v, s=None, wtol=1e-12):
     ''' Builds a set of couplings using the eigenvectors of the outer
         product of the space spanned by a set of vectors, scaled by
         their signs.
@@ -115,7 +115,7 @@ def make_coups_outer(v, s=None, wtol=1e-10):
         return coup, sign
 
 
-def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference, for a particular leading
         index.
@@ -181,7 +181,7 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-10, ss_factor=1.0, os_factor=
     return e, v
 
 
-def build_rmp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference.
 
@@ -232,7 +232,7 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     return e, v
 
 
-def build_rmp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference.
 
@@ -273,7 +273,7 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
     return poles
 
 
-def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -327,7 +327,7 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.
     return poles
 
 
-def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -363,7 +363,7 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.
                                     ss_factor=ss_factor, os_factor=os_factor)
 
 
-def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.

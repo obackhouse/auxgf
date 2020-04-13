@@ -8,7 +8,7 @@ from auxgf.aux.rmp2 import *
 from auxgf.aux.ump2 import *
 
 
-def build_mp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_mp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams.
 
@@ -33,7 +33,7 @@ def build_mp2_part(eo, ev, xija, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
                                ss_factor=ss_factor, os_factor=os_factor)
 
 
-def build_mp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_mp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams. Output is controlled by input dimensions:
 
@@ -70,7 +70,7 @@ def build_mp2(e, eri, chempot=0.0, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
             return a, b
 
 
-def build_mp2_iter(aux, h_phys, eri_mo, wtol=1e-10, ss_factor=1.0, os_factor=1.0):
+def build_mp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
