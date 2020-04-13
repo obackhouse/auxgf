@@ -18,7 +18,7 @@ def _set_options(**kwargs):
                 'maxiter' : 50,
                 'etol' : 1e-6,
                 'wtol' : 1e-10,
-                'damping' : 0.5,
+                'damping' : 0.0,
                 'delay_damping' : 0,
                 'dtol' : 1e-8,
                 'diis_space' : 8,
