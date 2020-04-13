@@ -10,6 +10,7 @@ import os
 from auxgf.util import types, mkl
 
 use_pyscf_einsum = False
+use_scipy_qr = True
 
 
 ''' Wrapper to clear up `optimize` keywords inconsistencies between
@@ -54,6 +55,9 @@ def qr_unsafe(a):
     r : (n,n) ndarray
         upper-triangular matrix
     '''
+
+    # I have seen some bugs with this so I am tentative to use it
+    raise NotImplementedError
 
     if not mkl.has_mkl:
         return np.linalg.qr(a)
