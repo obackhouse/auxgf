@@ -12,6 +12,7 @@ modules = OrderedDict([
     ('dft', ['rdft', 'udft']),
     ('mp', ['mp2', 'oomp2']),
     ('cc', ['ccsd']),
+    ('adc', ['adc2', 'adc2x', 'adc3']),
     ('aux', ['aux', 'build', 'energy']),
     ('agf2', ['ragf2', 'uagf2']),
 ])
