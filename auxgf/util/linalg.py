@@ -79,6 +79,28 @@ def qr_unsafe(a):
     return q, r
 
 
+def cholesky_qr(a):
+    ''' Performs the Cholesky QR decomposition. This can be unstable.
+    '''
+
+    x = np.dot(a.T, a)
+    r = np.linalg.cholesky(x).T
+    q = np.dot(a, np.linalg.inv(r))
+
+    return q, r
+
+
+def cholesky_qr2(a):
+    ''' Refines the instability of cholesky_qr.
+    '''
+
+    q1, r1 = cholesky_qr(a)
+    q2, r2 = cholesky_qr(q1)
+    r2 = np.dot(r2, r1)
+
+    return q2, r2
+
+
 def block_diag(arrays):
     ''' Constructs a block diagonal array from a series of arrays.
         Input arrays don't need to be square or the same shape.

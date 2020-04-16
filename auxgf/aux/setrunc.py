@@ -1,4 +1,16 @@
 ''' Routines for truncation via self-energy moments.
+
+    A note on QR decomposition methods:
+
+        The slowest step in most AGF2 calculations tends to be the QR
+        factorisation of the couplings in the Sigma truncation. For
+        this reason I have tried a number of different QR codes, but
+        I have settled on a fast Cholesky QR implementation.
+
+        This is unstable in ill-conditioned matrices, however I think
+        that for any reasonable AGF2 calculation the couplings should
+        be well-conditioned, and if not then there would be other
+        problems outside of the QR solver.
 '''
 
 import numpy as np
@@ -103,8 +115,9 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
 
         #vnext, b[j] = util.qr(r, mode='reduced')
         #vnext, b[j] = util.qr_unsafe(r)
-        vnext, b[j] = scipy.linalg.qr(r, mode='economic', overwrite_a=True, 
-                                      check_finite=False)
+        #vnext, b[j] = scipy.linalg.qr(r, mode='economic', overwrite_a=True, 
+        ##                              check_finite=False)
+        vnext, b[j] = util.cholesky_qr(r)
 
         if not keep_v:
             v = [v[-1], vnext]
@@ -140,7 +153,8 @@ def block_lanczos_1mom(aux, h_phys, **kwargs):
     ''' The above function simplifies significantly in the case of nmom=1.
     '''
     #v, b = util.qr(aux.v.T, mode='reduced')
-    v, b = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
+    #v, b = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
+    v, b = util.cholesky_qr(aux.v.T)
     m = util.einsum('ip,i,iq->pq', v, aux.e, v)
     return [h_phys, m], [b,]
 
@@ -174,7 +188,8 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     nband = int(nblock * nphys)
 
     #v, coup = util.qr(aux.v.T, mode='reduced')
-    v, coup = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
+    #v, coup = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
+    v, coup = util.cholesky_qr(aux.v.T)
 
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:min(nphys, naux)] = v.T
