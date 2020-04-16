@@ -15,10 +15,26 @@
 
 import numpy as np
 import scipy.linalg
+from functools import partial
 
 from auxgf import util
 from auxgf.util import types
 
+
+def _get_qr_function(method='cholesky'):
+    if method == 'cholesky':
+        qr = util.cholesky_qr
+    elif method == 'numpy':
+        qr = partial(util.qr, mode='reduced')
+    elif method == 'scipy':
+        qr = partial(scipy.linalg.qr, mode='economic', 
+                     overwrite_a=False, check_finite=False)
+    elif method == 'unsafe':
+        qr = util.qr_unsafe
+    else:
+        raise ValueError
+
+    return qr
 
 def build_block_tridiag(m, b):
     ''' Constructs a block tridiagonal matrix from a list of
@@ -73,6 +89,9 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
     reorthog : bool, optional
         enable reorthogonalization of the intermediate Lanczos
         vectors (default True)
+    qr: str, optional
+        type of QR solver to use {'cholesky', 'numpy', 'scipy', 
+        'unsafe'}, default 'cholesky'
     keep_v : bool, optional
         keep and return all of the Lanczos vectors (default False)
         automatically enabled in `debug` is True
@@ -92,6 +111,8 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
     nqmo = nphys + aux.naux
 
     keep_v = kwargs.get('debug', False) or kwargs.get('keep_v', False)
+
+    qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
 
     #while nblock >= nqmo // nphys:
     #    nblock -= 1
@@ -113,11 +134,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         if kwargs.get('reorthog', True):
             r -= np.dot(v[-1], np.dot(v[-1].T, r))
 
-        #vnext, b[j] = util.qr(r, mode='reduced')
-        #vnext, b[j] = util.qr_unsafe(r)
-        #vnext, b[j] = scipy.linalg.qr(r, mode='economic', overwrite_a=True, 
-        ##                              check_finite=False)
-        vnext, b[j] = util.cholesky_qr(r)
+        vnext, b[j] = qr(r)
 
         if not keep_v:
             v = [v[-1], vnext]
@@ -152,9 +169,8 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
 def block_lanczos_1mom(aux, h_phys, **kwargs):
     ''' The above function simplifies significantly in the case of nmom=1.
     '''
-    #v, b = util.qr(aux.v.T, mode='reduced')
-    #v, b = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
-    v, b = util.cholesky_qr(aux.v.T)
+    qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
+    v, b = qr(aux.v.T)
     m = util.einsum('ip,i,iq->pq', v, aux.e, v)
     return [h_phys, m], [b,]
 
@@ -173,6 +189,9 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     nblock : int or float
         number of blocks required = nmom + 1, if float is given, the
         size of the resulting space is rounded to an integer
+    qr: str, optional
+        type of QR solver to use {'cholesky', 'numpy', 'scipy', 
+        'unsafe'}, default 'cholesky'
     debug : bool, optional
         enable debugging tools (default False)
         WARNING: this kills the scaling and memory usage
@@ -187,9 +206,8 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     naux = aux.naux
     nband = int(nblock * nphys)
 
-    #v, coup = util.qr(aux.v.T, mode='reduced')
-    #v, coup = scipy.linalg.qr(aux.v.T, mode='economic', check_finite=False)
-    v, coup = util.cholesky_qr(aux.v.T)
+    qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
+    v, coup = qr(aux.v.T)
 
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:min(nphys, naux)] = v.T
@@ -251,7 +269,7 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom, method='band'):
+def run(aux, h_phys, nmom, method='band', qr='cholesky'):
     ''' Runs the truncation by moments of the self-energy.
         
         [1] H. Muther, T. Taigel and T. T. S. Kuo, Nucl. Phys., 482, 
@@ -273,6 +291,9 @@ def run(aux, h_phys, nmom, method='band'):
         maximum moment order
     method : str, optional
         type of diagonalizer to use {'block', 'band'}, default 'band'
+    qr: str, optional
+        type of QR solver to use {'cholesky', 'numpy', 'scipy', 
+        'unsafe'}, default 'cholesky'
 
     Returns
     -------
@@ -286,22 +307,28 @@ def run(aux, h_phys, nmom, method='band'):
         return aux.new([], [[],]*aux.nphys)
 
     elif nmom == 1:
-        m_occ, b_occ = block_lanczos_1mom(aux.as_occupied(), h_phys)
-        m_vir, b_vir = block_lanczos_1mom(aux.as_virtual(), h_phys)
+        m_occ, b_occ = block_lanczos_1mom(aux.as_occupied(), 
+                                          h_phys, qr=qr)
+        m_vir, b_vir = block_lanczos_1mom(aux.as_virtual(), 
+                                          h_phys, qr=qr)
 
         t_occ = build_block_tridiag(m_occ, b_occ)
         t_vir = build_block_tridiag(m_vir, b_vir)
 
     elif method == 'block':
-        m_occ, b_occ = block_lanczos(aux.as_occupied(), h_phys, nmom)
-        m_vir, b_vir = block_lanczos(aux.as_virtual(), h_phys, nmom)
+        m_occ, b_occ = block_lanczos(aux.as_occupied(), 
+                                     h_phys, nmom, qr=qr)
+        m_vir, b_vir = block_lanczos(aux.as_virtual(),
+                                     h_phys, nmom, qr=qr)
 
         t_occ = build_block_tridiag(m_occ, b_occ)
         t_vir = build_block_tridiag(m_vir, b_vir)
 
     else:
-        t_occ = band_lanczos(aux.as_occupied(), h_phys, nmom)
-        t_vir = band_lanczos(aux.as_virtual(), h_phys, nmom)
+        t_occ = band_lanczos(aux.as_occupied(), 
+                             h_phys, nmom, qr=qr)
+        t_vir = band_lanczos(aux.as_virtual(),
+                             h_phys, nmom, qr=qr)
 
     e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
     e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)

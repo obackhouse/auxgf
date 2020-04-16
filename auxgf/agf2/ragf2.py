@@ -29,6 +29,7 @@ def _set_options(**kwargs):
                 'use_merge' : False,
                 'bath_type' : 'power',
                 'bath_beta' : 100,
+                'qr' : 'cholesky',
     }
 
     for key,val in kwargs.items():
@@ -126,6 +127,9 @@ class RAGF2:
         'power'
     bath_beta : int, optional
         inverse temperature used in GF truncation kernel, default 100
+    qr : str, optional
+        type of QR solver to use for SE truncation {'cholesky', 
+        'numpy', 'scipy', 'unsafe'}, default 'cholesky'
 
     Attributes
     ----------
@@ -268,7 +272,8 @@ class RAGF2:
 
         self.se = self.se.compress(_active(self, self.get_fock()), self.nmom,
                                    method=self.options['bath_type'],
-                                   beta=self.options['bath_beta'])
+                                   beta=self.options['bath_beta'],
+                                   qr=self.options['qr'])
 
         if self.options['use_merge']:
             self.se = self.se.merge(etol=self.options['etol'],

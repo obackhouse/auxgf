@@ -29,6 +29,7 @@ def _set_options(**kwargs):
                 'use_merge' : False,
                 'bath_type' : 'power',
                 'bath_beta' : 100,
+                'qr' : 'cholesky',
     }
 
     for key,val in kwargs.items():
@@ -125,6 +126,10 @@ class UAGF2:
         'power'
     bath_beta : int, optional
         inverse temperature used in GF truncation kernel, default 100
+    qr : str, optional
+        type of QR solver to use for SE truncation {'cholesky', 
+        'numpy', 'scipy', 'unsafe'}, default 'cholesky'
+
 
     Attributes
     ----------
@@ -292,10 +297,12 @@ class UAGF2:
         fock_act = _active(self, self.get_fock(), 2)
         sea = self.se[0].compress(fock_act[0], self.nmom,
                                   method=self.options['bath_type'],
-                                  beta=self.options['bath_beta'])
+                                  beta=self.options['bath_beta'],
+                                  qr=self.options['qr'])
         seb = self.se[1].compress(fock_act[1], self.nmom,
                                   method=self.options['bath_type'],
-                                  beta=self.options['bath_beta'])
+                                  beta=self.options['bath_beta'],
+                                  qr=self.options['qr'])
 
         if self.options['use_merge']:
             sea = sea.merge(etol=self.options['etol'],

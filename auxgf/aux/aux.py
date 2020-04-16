@@ -527,7 +527,7 @@ class Aux:
         return merge.aux_merge_exact(self, etol=etol, wtol=wtol)
 
 
-    def se_compress(self, h_phys, nmom, run_anyway=False):
+    def se_compress(self, h_phys, nmom, run_anyway=False, qr='cholesky'):
         ''' Compresses the auxiliaries via the associated self-energy.
             Compression is performed out-of-place.
 
@@ -540,6 +540,9 @@ class Aux:
         run_anyway : bool, optional
             if number of resulting auxiliaries will be more than the
             current number, run the function anyway, default False
+        qr : str, optional
+            type of QR solver to use for SE truncation {'cholesky', 
+            'numpy', 'scipy', 'unsafe'}, default 'cholesky'
 
         Returns
         -------
@@ -551,7 +554,7 @@ class Aux:
             if 2*self.nphys*(nmom+1) > self.naux:
                 return self
 
-        red = setrunc.run(self, h_phys, nmom)
+        red = setrunc.run(self, h_phys, nmom, qr=qr)
 
         return red
 
@@ -592,7 +595,7 @@ class Aux:
         return red
 
 
-    def compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0):
+    def compress(self, h_phys, nmom, method='power', beta=100, chempot=0.0, qr='cholesky'):
         ''' Compresses the auxiliaries via the hybird algorithm.
             Compression is performed out-of-place.
 
@@ -610,6 +613,9 @@ class Aux:
             GF inverse temperature, required for `method='legendre'`
         chempot : float, optional
             chemical potential, required for `method='legendre'`
+        qr : str, optional
+            type of QR solver to use for SE truncation {'cholesky', 
+            'numpy', 'scipy', 'unsafe'}, default 'cholesky'
 
         Returns
         -------
@@ -620,7 +626,7 @@ class Aux:
         if nmom is None or nmom == (None, None):
             return self # why?
         elif nmom[0] == None:
-            return self.se_compress(h_phys, nmom[1])
+            return self.se_compress(h_phys, nmom[1], qr=qr)
         elif nmom[1] == None:
             return self.gf_compress(h_phys, nmom[0], method=method, 
                                     beta=beta, chempot=self.chempot)
@@ -629,7 +635,7 @@ class Aux:
         # this is desired then the user should separately call
         # self.se_compress and self.gf_compress
 
-        red = self.se_compress(h_phys, nmom[1])
+        red = self.se_compress(h_phys, nmom[1], qr=qr)
         red = red.gf_compress(h_phys, nmom[0], method=method, 
                               beta=beta, chempot=self.chempot)
 
