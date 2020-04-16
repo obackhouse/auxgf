@@ -149,14 +149,9 @@ def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-12, ss_factor=1.0, os_factor=
     nphys = xija.shape[0]
     jm = slice(None, i)
 
-    if isinstance(xija, np.ndarray):
-        vija = xija[:,i,jm].reshape((nphys, -1))
-        vjia = xija[:,jm,i].reshape((nphys, -1))
-        viia = xija[:,i,i]
-    else:
-        vija = xija.getitem_i(i)
-        vjia = xija.getitem_j(i)
-        viia = xija.getitem_ij(i,i)
+    vija = xija[:,i,jm].reshape((nphys, -1))
+    vjia = xija[:,jm,i].reshape((nphys, -1))
+    viia = xija[:,i,i]
 
     ea = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
     eb = ea

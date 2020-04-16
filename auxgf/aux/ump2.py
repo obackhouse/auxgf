@@ -160,14 +160,9 @@ def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-12, ss_factor=1.0, os_factor=
     _, _, noccb, nvirb = xija[1].shape
     jm = slice(None, i)
 
-    if isinstance(xija[0], np.ndarray):
-        vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
-        vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
-        vija_abb = xija[1][:,i].reshape((nphys, -1))
-    else:
-        vija_aaa = xija[0].getitem_i(i)
-        vjia_aaa = xija[0].getitem_j(i)
-        viia_abb = xija[1].getitem_i(i)
+    vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
+    vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
+    vija_abb = xija[1][:,i].reshape((nphys, -1))
 
     ea = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
     eb = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
