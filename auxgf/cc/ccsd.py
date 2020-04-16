@@ -25,9 +25,9 @@ class CCSD:
         Hartree-Fock energy
     e_t : float
         perturbative triples energy
-    ip : float
+    ip : float, ndarray of floats
         ionization potential via EOM-IP-CCSD
-    ea : float
+    ea : float, ndarray of floats
         electron affinity via EOM-EA-CCSD
 
     Methods
@@ -63,9 +63,9 @@ class CCSD:
 
     @property
     def ip(self):
-        return self._pyscf.ipccsd()[0]
+        return self._pyscf.ipccsd()
 
     @property
     def ea(self):
-        return self._pyscf.eaccsd()[0]
+        return self._pyscf.eaccsd()
 
