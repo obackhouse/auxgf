@@ -124,64 +124,6 @@ def make_coups_outer(v, s=None, wtol=1e-12):
         return coup, sign
 
 
-def build_ump2_part_batch(eo, ev, xija, i, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
-    ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
-        diagrams for an unrestricted reference, for a particular leading
-        index.
-
-    Parameters
-    ----------
-    eo : 2-tuple of (o) ndarray
-        occupied (virtual) energies for alpha, beta (beta, alpha) spin
-    ev : 2-tuple of (v) ndarray
-        virtual (occupied) energies for alpha, beta (beta, alpha) spin
-    xija : 2-tuple of (n,o,o,v)
-        two-electron integrals indexed as physical, occupied, occupied,
-        virtual (physical, virtual, virtual, occupied) for (aa|aa),
-        (aa|bb) [(bb|bb), (bb|aa)] spin
-    i : int
-        chosen index i (a)
-    wtol : float, optional
-        threshold for an eigenvalue to be considered zero
-    ss_factor : float, optional
-        same spin factor, default 1.0
-    os_factor : float, optional
-        opposite spin factor, default 1.0
-
-    Returns
-    -------
-    e : (m) ndarray
-        auxiliary energies
-    v : (n,m) ndarray
-        auxiliary couplings
-    '''
-
-    nphys, nocca, _, nvira = xija[0].shape
-    _, _, noccb, nvirb = xija[1].shape
-    jm = slice(None, i)
-
-    vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
-    vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
-    vija_abb = xija[1][:,i].reshape((nphys, -1))
-
-    ea = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
-    eb = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
-
-    va = np.sqrt(ss_factor) * vija_aaa - vjia_aaa
-    vb = np.sqrt(os_factor) * vija_abb
-
-    e = np.concatenate((ea, eb), axis=0)
-    v = np.concatenate((va, vb), axis=1)
-
-    mask = np.sum(v*v, axis=0) >= wtol
-    e = e[mask]
-    v = v[:,mask]
-
-    assert e.shape[0] == v.shape[1]
-
-    return e, v
-
-
 def build_ump2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for an unrestricted reference.
@@ -219,19 +161,38 @@ def build_ump2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     e = np.zeros((npoles), dtype=types.float64)
     v = np.zeros((nphys, npoles), dtype=types.float64)
 
+    a_factor = np.sqrt(ss_factor)
+    b_factor = np.sqrt(os_factor)
+
     n0 = 0
     for i in range(nocca):
-        ei, vi = build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol,
-                                       ss_factor=ss_factor, os_factor=os_factor)
-        n1 = n0 + ei.shape[0]
+        nja_a = i * nvira
+        nja_b = noccb * nvirb
+        jm = slice(None, i)
+        am = slice(n0, n0+nja_a)
+        bm = slice(n0+nja_a, n0+nja_a+nja_b)
 
-        e[n0:n1] = ei
-        v[:,n0:n1] = vi
+        vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
+        vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
+        vija_abb = xija[1][:,i].reshape((nphys, -1))
 
-        n0 = n1
+        e[am] = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
+        e[bm] = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
+
+        # FIXME: is this line correct? originally I did not have the brackets here
+        v[:,am] = a_factor * (vija_aaa - vjia_aaa)
+        v[:,bm] = b_factor * vija_abb
+
+        n0 += nja_a + nja_b
+
+    mask = np.sum(v*v, axis=0) >= wtol
+    e = e[mask]
+    v = v[:,mask]
 
     e = e[:n0]
     v = v[:,:n0]
+
+    assert e.shape[0] == v.shape[1]
 
     return e, v
 

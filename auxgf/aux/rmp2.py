@@ -115,67 +115,6 @@ def make_coups_outer(v, s=None, wtol=1e-12):
         return coup, sign
 
 
-def build_rmp2_part_batch(eo, ev, xija, i, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
-    ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
-        diagrams for a restricted reference, for a particular leading
-        index.
-
-    Parameters
-    ----------
-    eo : (o) ndarray
-        occupied (virtual) energies
-    ev : (v) ndarray
-        virtual (occupied) energies
-    xija : (n,o,o,v)
-        two-electron integrals indexed as physical, occupied, occupied,
-        virtual (physical, virtual, virtual, occupied)
-    i : int
-        chosen index i (a)
-    wtol : float, optional
-        threshold for an eigenvalue to be considered zero
-    ss_factor : float, optional
-        same spin factor, default 1.0
-    os_factor : float, optional
-        opposite spin factor, deafult 1.0
-
-    Returns
-    -------
-    e : (m) ndarray
-        auxiliary energies
-    v : (n,m) ndarray
-        auxiliary couplings
-    '''
-
-    nphys = xija.shape[0]
-    jm = slice(None, i)
-
-    vija = xija[:,i,jm].reshape((nphys, -1))
-    vjia = xija[:,jm,i].reshape((nphys, -1))
-    viia = xija[:,i,i]
-
-    ea = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
-    eb = ea
-    ec = 2 * eo[i] - ev
-
-    pos_factor = 0.5 * os_factor
-    neg_factor = ss_factor + pos_factor
-
-    va = np.sqrt(neg_factor) * (vija - vjia)
-    vb = np.sqrt(pos_factor) * (vija + vjia)
-    vc = np.sqrt(os_factor) * viia
-
-    e = np.concatenate((ea, eb, ec), axis=0)
-    v = np.concatenate((va, vb, vc), axis=1)
-
-    mask = np.sum(v*v, axis=0) >= wtol
-    e = e[mask]
-    v = v[:,mask]
-
-    assert e.shape[0] == v.shape[1]
-
-    return e, v
-
-
 def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference.
@@ -210,19 +149,36 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     e = np.zeros((npoles), dtype=types.float64)
     v = np.zeros((nphys, npoles), dtype=types.float64)
 
+    pos_factor = np.sqrt(0.5 * os_factor)
+    neg_factor = np.sqrt(0.5 * os_factor + ss_factor)
+    dia_factor = np.sqrt(os_factor)
+
     n0 = 0
     for i in range(nocc):
-        ei, vi = build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol, 
-                                       ss_factor=ss_factor, os_factor=os_factor)
-        n1 = n0 + ei.shape[0]
+       nja = i * nvir
+       jm = slice(None, i) 
+       am = slice(n0, n0+nja)
+       bm = slice(n0+nja, n0+nja*2)
+       cm = slice(n0+nja*2, n0+nja*2+nvir)
 
-        e[n0:n1] = ei
-        v[:,n0:n1] = vi
+       vija = xija[:,i,jm].reshape((nphys, -1))
+       vjia = xija[:,jm,i].reshape((nphys, -1))
 
-        n0 = n1
+       e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
+       e[bm] = e[am]
+       e[cm] = 2 * eo[i] - ev
 
-    e = e[:n0]
-    v = v[:,:n0]
+       v[:,am] = neg_factor * (vija - vjia)
+       v[:,bm] = pos_factor * (vija + vjia)
+       v[:,cm] = dia_factor * xija[:,i,i]
+
+       n0 += nja * 2 + nvir
+
+    mask = np.sum(v*v, axis=0) >= wtol
+    e = e[mask]
+    v = v[:,mask]
+
+    assert e.shape[0] == v.shape[1]
 
     return e, v
 
