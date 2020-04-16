@@ -59,6 +59,8 @@ def options(opts, verbose=1):
     if verbose:
         for item in sorted(opts.items()):
             if item[0][0] != '_':
+                if isinstance(item[1], np.ndarray):
+                    item = (item[0], item[1].ravel())
                 write(('%-' + str(max_size) + 's : %-16s\n') % item)
 
 
@@ -88,15 +90,16 @@ def array(arr, title, verbose=1):
         arr = arr[None,:]
 
     if verbose > 1:
-        line = '-' * (13 * arr.shape[1] + 1)
-        
-        s = '%s:\n' % title
-        s += line + '\n'
+        with np.printoptions(precision=12, edgeitems=100, linewidth=200):
+            line = '-' * (13 * arr.shape[1] + 1)
 
-        for i in range(arr.shape[0]):
-            s += ' ' + ' '.join(['%12.6f' % x for x in arr[i,:]]) + ' \n'
+            s = '%s:\n' % title
+            s += line + '\n'
 
-        s += line + '\n'
+            for i in range(arr.shape[0]):
+                s += ' ' + ' '.join(['%12.6f' % x for x in arr[i,:]]) + ' \n'
 
-        write(s)
+            s += line + '\n'
+
+            write(s)
 
