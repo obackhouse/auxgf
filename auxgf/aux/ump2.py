@@ -365,10 +365,40 @@ def build_ump2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
     '''
 
     nphys, nocca, _, nvira = xija[0].shape
+    _, _, noccb, nvirb = xija[1].shape
+    npoles  = nvira * nocca * (nocca-1) // 2
+    npoles += nvirb * nocca * noccb
 
+    e = np.zeros((npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=types.float64)
+
+    a_factor = np.sqrt(ss_factor)
+    b_factor = np.sqrt(os_factor)
+
+    n0 = 0
     for i in range(nocca):
-        yield build_ump2_part_batch(eo, ev, xija, i=i, wtol=wtol,
-                                    ss_factor=ss_factor, os_factor=os_factor)
+        nja_a = i * nvira
+        nja_b = noccb * nvirb
+        jm = slice(None, i)
+        am = slice(n0, n0+nja_a)
+        bm = slice(n0+nja_a, n0+nja_a+nja_b)
+
+        vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
+        vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
+        vija_abb = xija[1][:,i].reshape((nphys, -1))
+
+        e[am] = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
+        e[bm] = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
+
+        # FIXME: is this line correct? originally I did not have the brackets here
+        v[:,am] = a_factor * (vija_aaa - vjia_aaa)
+        v[:,bm] = b_factor * vija_abb
+
+        n1 = n0 + nja_a + nja_b
+
+        yield e[n0:n1], v[:,n0:n1]
+
+        n0 = n1
 
 
 def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
@@ -394,8 +424,10 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     
     Yields
     ------
-    poles : Aux
-        auxiliaries
+    poles_a : Aux
+        auxiliaries for alpha spin
+    poles_b : Aux
+        auxiliaries for beta spin
     '''
 
     if not isinstance(chempot, tuple):
@@ -406,10 +438,13 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    yield from build_ump2_part_direct(eo, ev, xija, wtol=wtol,
-                                      ss_factor=ss_factor, os_factor=os_factor)
-    yield from build_ump2_part_direct(ev, eo, xabi, wtol=wtol,
-                                      ss_factor=ss_factor, os_factor=os_factor)
+    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
+
+    for e,v in build_ump2_part_direct(eo, ev, xija, **kwargs): 
+        yield aux.Aux(e, v, chempot=chempot[0])
+
+    for e,v in build_ump2_part_direct(ev, eo, xabi, **kwargs): 
+        yield aux.Aux(e, v, chempot=chempot[1])
 
 
 def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman'):

@@ -26,6 +26,10 @@ se_mp2 = se_mp2_aux.as_spectrum(imfq)
 assert np.allclose(se_mp2_ref, se_mp2)
 
 
+se_mp2 = np.sum([x.as_spectrum(imfq) for x in aux.build_rmp2_direct(e, eri, chempot=cpt)], axis=0)
+assert np.allclose(se_mp2_ref, se_mp2)
+
+
 se_mp2 = aux.build_rmp2_se_direct(e, eri, imfq, chempot=cpt)
 assert np.allclose(se_mp2_ref, se_mp2)
 

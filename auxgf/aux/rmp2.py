@@ -161,8 +161,8 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
        bm = slice(n0+nja, n0+nja*2)
        cm = slice(n0+nja*2, n0+nja*2+nvir)
 
-       vija = xija[:,i,jm].reshape((nphys, -1))
-       vjia = xija[:,jm,i].reshape((nphys, -1))
+       vija = xija[:,i,jm].reshape((nphys, nja))
+       vjia = xija[:,jm,i].reshape((nphys, nja))
 
        e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
        e[bm] = e[am]
@@ -279,6 +279,8 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
 
 
 def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+    #TODO: is sharing the memory in these yield statements efficient?
+
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -308,10 +310,39 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
     '''
 
     nphys, nocc, _, nvir = xija.shape
+    npoles = nocc * nocc * nvir
 
+    e = np.zeros((npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=types.float64)
+
+    pos_factor = np.sqrt(0.5 * os_factor)
+    neg_factor = np.sqrt(0.5 * os_factor + ss_factor)
+    dia_factor = np.sqrt(os_factor)
+
+    n0 = 0
     for i in range(nocc):
-        yield build_rmp2_part_batch(eo, ev, xija, i=i, wtol=wtol,
-                                    ss_factor=ss_factor, os_factor=os_factor)
+       nja = i * nvir
+       jm = slice(None, i) 
+       am = slice(n0, n0+nja)
+       bm = slice(n0+nja, n0+nja*2)
+       cm = slice(n0+nja*2, n0+nja*2+nvir)
+
+       vija = xija[:,i,jm].reshape((nphys, nja))
+       vjia = xija[:,jm,i].reshape((nphys, nja))
+
+       e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
+       e[bm] = e[am]
+       e[cm] = 2 * eo[i] - ev
+
+       v[:,am] = neg_factor * (vija - vjia)
+       v[:,bm] = pos_factor * (vija + vjia)
+       v[:,cm] = dia_factor * xija[:,i,i]
+
+       n1 = n0 + nja * 2 + nvir
+
+       yield e[n0:n1], v[:,n0:n1]
+
+       n0 = n1
 
 
 def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
@@ -343,10 +374,13 @@ def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
 
-    yield from build_rmp2_part_direct(eo, ev, xija, wtol=wtol,
-                                      ss_factor=ss_factor, os_factor=os_factor)
-    yield from build_rmp2_part_direct(ev, eo, xabi, wtol=wtol,
-                                      ss_factor=ss_factor, os_factor=os_factor)
+    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
+
+    for e,v in build_rmp2_part_direct(eo, ev, xija, **kwargs):
+        yield aux.Aux(e, v, chempot=chempot)
+
+    for e,v in build_rmp2_part_direct(ev, eo, xabi, **kwargs):
+        yield aux.Aux(e, v, chempot=chempot)
 
 
 def build_rmp2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman'):

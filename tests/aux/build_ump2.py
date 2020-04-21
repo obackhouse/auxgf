@@ -31,6 +31,10 @@ se_mp2 = se_mp2_aux_a.as_spectrum(imfq)
 assert np.allclose(se_mp2_ref, se_mp2)
 
 
+se_mp2 = np.sum([x.as_spectrum(imfq) for x in aux.build_ump2_direct((e[0], e[1]), (eri[0,0], eri[0,1]), chempot=cpt)], axis=0)
+assert np.allclose(se_mp2_ref, se_mp2)
+
+
 se_mp2 = aux.build_ump2_se_direct((e[0], e[1]), (eri[0,0], eri[0,1]), imfq, chempot=cpt)
 assert np.allclose(se_mp2_ref, se_mp2)
 
