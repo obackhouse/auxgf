@@ -155,24 +155,24 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
 
     n0 = 0
     for i in range(nocc):
-       nja = i * nvir
-       jm = slice(None, i) 
-       am = slice(n0, n0+nja)
-       bm = slice(n0+nja, n0+nja*2)
-       cm = slice(n0+nja*2, n0+nja*2+nvir)
+        nja = i * nvir
+        jm = slice(None, i) 
+        am = slice(n0, n0+nja)
+        bm = slice(n0+nja, n0+nja*2)
+        cm = slice(n0+nja*2, n0+nja*2+nvir)
 
-       vija = xija[:,i,jm].reshape((nphys, nja))
-       vjia = xija[:,jm,i].reshape((nphys, nja))
+        vija = xija[:,i,jm].reshape((nphys, nja))
+        vjia = xija[:,jm,i].reshape((nphys, nja))
 
-       e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
-       e[bm] = e[am]
-       e[cm] = 2 * eo[i] - ev
+        e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
+        e[bm] = e[am]
+        e[cm] = 2 * eo[i] - ev
 
-       v[:,am] = neg_factor * (vija - vjia)
-       v[:,bm] = pos_factor * (vija + vjia)
-       v[:,cm] = dia_factor * xija[:,i,i]
+        v[:,am] = neg_factor * (vija - vjia)
+        v[:,bm] = pos_factor * (vija + vjia)
+        v[:,cm] = dia_factor * xija[:,i,i]
 
-       n0 += nja * 2 + nvir
+        n0 += nja * 2 + nvir
 
     mask = np.sum(v*v, axis=0) >= wtol
     e = e[mask]
@@ -280,6 +280,7 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
 
 def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     #TODO: is sharing the memory in these yield statements efficient?
+    # this also means that this function is still O(n^4) in memory which seems pointless #FIXME
 
     ''' Builds a set of auxiliaries representing all (i,j,a) or (a,b,i)
         diagrams for a restricted reference. Uses a generator which
@@ -321,28 +322,28 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
 
     n0 = 0
     for i in range(nocc):
-       nja = i * nvir
-       jm = slice(None, i) 
-       am = slice(n0, n0+nja)
-       bm = slice(n0+nja, n0+nja*2)
-       cm = slice(n0+nja*2, n0+nja*2+nvir)
+        nja = i * nvir
+        jm = slice(None, i) 
+        am = slice(n0, n0+nja)
+        bm = slice(n0+nja, n0+nja*2)
+        cm = slice(n0+nja*2, n0+nja*2+nvir)
 
-       vija = xija[:,i,jm].reshape((nphys, nja))
-       vjia = xija[:,jm,i].reshape((nphys, nja))
+        vija = xija[:,i,jm].reshape((nphys, nja))
+        vjia = xija[:,jm,i].reshape((nphys, nja))
 
-       e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
-       e[bm] = e[am]
-       e[cm] = 2 * eo[i] - ev
+        e[am] = eo[i] + np.subtract.outer(eo[jm], ev).flatten()
+        e[bm] = e[am]
+        e[cm] = 2 * eo[i] - ev
 
-       v[:,am] = neg_factor * (vija - vjia)
-       v[:,bm] = pos_factor * (vija + vjia)
-       v[:,cm] = dia_factor * xija[:,i,i]
+        v[:,am] = neg_factor * (vija - vjia)
+        v[:,bm] = pos_factor * (vija + vjia)
+        v[:,cm] = dia_factor * xija[:,i,i]
 
-       n1 = n0 + nja * 2 + nvir
+        n1 = n0 + nja * 2 + nvir
 
-       yield e[n0:n1], v[:,n0:n1]
+        yield e[n0:n1], v[:,n0:n1]
 
-       n0 = n1
+        n0 = n1
 
 
 def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
