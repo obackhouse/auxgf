@@ -7,7 +7,7 @@ from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
 import os
 
-from auxgf.util import types, mkl
+from auxgf.util import types, mkl, log
 
 use_pyscf_einsum = False
 
@@ -83,9 +83,15 @@ def cholesky_qr(a):
     ''' Performs the Cholesky QR decomposition. This can be unstable.
     '''
 
-    x = np.dot(a.T, a)
-    r = np.linalg.cholesky(x).T
-    q = np.dot(a, np.linalg.inv(r))
+    try:
+        x = np.dot(a.T, a)
+        r = np.linalg.cholesky(x).T
+        q = np.dot(a, np.linalg.inv(r))
+
+    except np.linalg.LinAlgError:
+        log.warn('Matrix not positive definite in Cholesky step of '
+                 'util.linalg.qholesky_qr - falling back to numpy.')
+        return np.linalg.qr(a)
 
     return q, r
 

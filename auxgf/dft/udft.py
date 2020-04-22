@@ -36,6 +36,7 @@ class UDFT(uhf.UHF):
         self.disable_omp = False
         self.check_stability = False
         self.stability_cycles = 10
+        self.with_df = False
 
         self.mol = mol
         self._pyscf = _dft.UKS(self.mol._pyscf, **kwargs)

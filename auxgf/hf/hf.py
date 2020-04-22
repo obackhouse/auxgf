@@ -89,6 +89,7 @@ class HF:
         self.disable_omp = kwargs.pop('disable_omp', True)
         self.check_stability = kwargs.pop('check_stability', True)
         self.stability_cycles = kwargs.pop('stability_cycles', 10)
+        self.with_df = kwargs.pop('with_df', False)
 
         self._pyscf = method(self.mol._pyscf, **kwargs)
 
@@ -105,6 +106,9 @@ class HF:
         return self
 
     def _run(self, **kwargs):
+        if self.with_df:
+            self._pyscf = self._pyscf.density_fit()
+
         self._pyscf.run(**kwargs)
 
         if self.check_stability:
@@ -125,7 +129,10 @@ class HF:
 
                 self._pyscf.scf(dm0=rdm1)
 
-        self._eri_ao = util.restore(1, self.mol._pyscf.intor('int2e'), self.nao)
+        if not self.with_df:
+            self._eri_ao = util.restore(1, self.mol._pyscf.intor('int2e'), self.nao)
+        else:
+            self._eri_ao = lib.unpack_tril(self._pyscf.with_df._cderi)
     
     @property
     def nao(self):
@@ -216,7 +223,11 @@ class HF:
 
     @property
     def eri_mo(self):
-        return util.ao2mo(self.eri_ao, self.c, self.c, self.c, self.c)
+        if not self.with_df:
+            return util.ao2mo(self.eri_ao, self.c, self.c, self.c, self.c)
+        else:
+            c = self.c
+            return util.einsum('Qpq,...pi,...qj->...Qij', self.eri_ao, c, c)
 
     def get_eri_mo(self, masks):
         coeffs = [self.c[:,mask] for mask in masks]
