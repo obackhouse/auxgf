@@ -11,7 +11,6 @@ def build_x(ixQ, Qja):
 
     x = np.zeros((rhf.nao, rhf.nao))
 
-    # This won't be split very equally (indices are tril)
     for i in range(rank, ixQ.shape[0], size):
         xja = util.einsum('xQ,Qja->xja', ixQ[i], Qja)
         xia = util.einsum('ixQ,Qa->xia', ixQ, Qja[:,i])
@@ -63,6 +62,7 @@ def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
 
     m = np.zeros((rhf.nao, rhf.nao))
 
+    # This won't be split very equally (indices are tril)
     for i in range(rank, ixQ.shape[0], size):
         e, v = build_rmp2_part_direct(gf_occ.e, gf_vir.e, ixQ, Qja, i=i)
         q = np.dot(binv.T, v)
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     size = comm.Get_size()
     rank = comm.Get_rank()
 
-    m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='aug-cc-pvdz')
+    m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='cc-pvtz')
     rhf = hf.RHF(m, with_df=True).run()
 
     eri = rhf.eri_mo  # Cholesky decomposed ERI tensor
