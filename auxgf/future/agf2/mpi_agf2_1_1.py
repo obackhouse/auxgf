@@ -99,16 +99,17 @@ if __name__ == '__main__':
     size = comm.Get_size()
     rank = comm.Get_rank()
 
-    m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='cc-pvtz')
+    m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='cc-pvdz')
     rhf = hf.RHF(m, with_df=True).run()
 
     eri = rhf.eri_mo  # Cholesky decomposed ERI tensor
+    rdm1 = rhf.rdm1_mo
     gf = aux.Aux(rhf.e, np.eye(rhf.nao), chempot=rhf.chempot)
     se = aux.Aux([], [[],]*rhf.nao, chempot=rhf.chempot)
     e_tot = rhf.e_tot
 
     while True:
-        se, rdm1, conv = agf2.fock.fock_loop_rhf(se, rhf, rhf.rdm1_mo, verbose=False)
+        se, rdm1, conv = agf2.fock.fock_loop_rhf(se, rhf, rdm1, verbose=False)
         
         e, c = se.eig(rhf.get_fock(rdm1, basis='mo'))
         gf = se.new(e, c[:rhf.nao])
