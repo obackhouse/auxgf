@@ -85,8 +85,10 @@ del moms
 #assert np.allclose(se_imfq, se_imfq_ref)
 #del se_imfq, se_imfq_ref
 
-se.save('se.dat')
-se_load = se.load('se.dat')
-se_copy = se.copy()
-assert se == se_load and se == se_copy
-os.remove('se.dat')
+if util.mpi.size == 1:  # FIXME
+    se.save('se.dat')
+    se_load = se.load('se.dat')
+    se_copy = se.copy()
+    assert se == se_load and se == se_copy
+    os.remove('se.dat')
+

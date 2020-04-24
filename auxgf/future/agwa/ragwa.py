@@ -1,7 +1,7 @@
 import numpy as np
 
 from auxgf import util, aux
-from auxgf.util import types, log
+from auxgf.util import types, log, mpi
 from auxgf.agf2.fock import fock_loop_rhf
 
 
@@ -45,6 +45,8 @@ def _set_options(**kwargs):
 
     if options['scheme'] == 'G0W0':
         options['maxiter'] = 1
+
+    options['verbose'] = options['verbose'] and mpi.rank
 
     return options
 

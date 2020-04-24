@@ -5,7 +5,7 @@ import numpy as np
 from pyscf import scf, lib
 
 from auxgf import util
-from auxgf.util import log, types
+from auxgf.util import log, types, mpi
 
 class HF:
     ''' Base class for Hartree-Fock SCF.
@@ -101,7 +101,8 @@ class HF:
             self._run(**kwargs)
 
         if not self._pyscf.converged:
-            log.warn('%s did not converged.' % self.__class__.__name__)
+            if mpi.rank:
+                log.warn('%s did not converged.' % self.__class__.__name__)
 
         return self
 
@@ -122,7 +123,8 @@ class HF:
 
                 if np.allclose(internal, self._pyscf.mo_coeff):
                     if niter == self.stability_cycles:
-                        log.warn('Internal stability in HF was not resolved.')
+                        if mpi.rank:
+                            log.warn('Internal stability in HF not resolved.')
                     break
                 else:
                     rdm1 = self._pyscf.make_rdm1(internal, self._pyscf.mo_occ)
@@ -130,7 +132,8 @@ class HF:
                 self._pyscf.scf(dm0=rdm1)
 
         if not self.with_df:
-            self._eri_ao = util.restore(1, self.mol._pyscf.intor('int2e'), self.nao)
+            self._eri_ao = util.restore(1, self.mol._pyscf.intor('int2e'), 
+                                        self.nao)
         else:
             self._eri_ao = lib.unpack_tril(self._pyscf.with_df._cderi)
     

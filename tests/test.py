@@ -4,6 +4,8 @@ import time
 import sys
 warnings.simplefilter('ignore', FutureWarning)
 
+from auxgf.util import mpi
+
 
 modules = OrderedDict([
     ('util', ['ao2mo', 'linalg']),
@@ -17,8 +19,13 @@ modules = OrderedDict([
     ('agf2', ['ragf2', 'uagf2']),
 ])
 
-sys.stdout.write('%12s %6s %6s\n' % ('module', 'time', 'status'))
-sys.stdout.write('%12s %6s %6s\n' % ('-'*12, '-'*6, '-'*6))
+if mpi.size > 1:
+    if mpi.rank == 0:
+        sys.stdout.write('%6s %12s %6s %6s\n' % ('proc', 'module', 'time', 'status'))
+        sys.stdout.write('%6s %12s %6s %6s\n' % ('-'*6, '-'*12, '-'*6, '-'*6))
+else:
+    sys.stdout.write('%12s %6s %6s\n' % ('module', 'time', 'status'))
+    sys.stdout.write('%12s %6s %6s\n' % ('-'*12, '-'*6, '-'*6))
 
 passed = True
 init_time = time.time()
@@ -26,7 +33,12 @@ init_time = time.time()
 for module,files in modules.items():
     for f in files:
         start = time.time()
-        sys.stdout.write('%12s ' % (module + '/' + f))
+
+        if mpi.size > 1:
+            sys.stdout.write('%6d %12s ' % (mpi.rank, module + '/' + f))
+        else:
+            sys.stdout.write('%12s ' % (module + '/' + f))
+
         try:
             exec('from tests.%s import %s' % (module, f))
             sys.stdout.write('%6.4f %6s\n' % (time.time() - start, 'pass'))
@@ -34,8 +46,18 @@ for module,files in modules.items():
             sys.stdout.write('%6.4f %6s\n' % (time.time() - start, 'fail'))
             passed = False
 
-if not passed:
-    sys.stdout.write('Some tests failed, run individual files to see errors\n')
+sys.stdout.flush()
+mpi.wait_all()
 
-sys.stdout.write('Runtime: %6.4f s\n' % (time.time() - init_time))
+if not passed:
+    if mpi.size == 1:
+        sys.stdout.write('Some tests failed, run individual files to see errors\n')
+    else:
+        sys.stdout.write('Some tests failed on proc %d, run individual files to see errors\n' % mpi.rank)
+
+sys.stdout.flush()
+mpi.wait_all()
+
+if mpi.rank == 0:
+    sys.stdout.write('Runtime: %6.4f s\n' % (time.time() - init_time))
 

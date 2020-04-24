@@ -6,7 +6,7 @@ import numpy as np
 import functools
 
 from auxgf import util, aux
-from auxgf.util import types, log
+from auxgf.util import types, log, mpi
 from auxgf.agf2.fock import fock_loop_rhf
 
 
@@ -55,6 +55,8 @@ def _set_options(**kwargs):
 
     if not isinstance(options['frozen'], tuple):
         options['frozen'] = (options['frozen'], 0)
+
+    options['verbose'] = options['verbose'] and mpi.rank
 
     return options
 
