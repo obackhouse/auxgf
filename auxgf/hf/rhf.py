@@ -3,6 +3,7 @@
 
 import numpy as np
 from pyscf import scf, lib
+from pyscf.scf.stability import rhf_stability
 
 from auxgf import util
 from auxgf.util import log
@@ -115,3 +116,7 @@ class RHF(hf.HF):
         _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
         
         return _hf
+
+    def stability(self, **kwargs):
+        return rhf_stability(self._pyscf, **kwargs)
+

@@ -3,6 +3,7 @@
 
 import numpy as np
 from pyscf import scf, lib
+from pyscf.scf.stability import rhf_stability, uhf_stability
 
 from auxgf import util
 from auxgf.util import log, types, mpi
@@ -114,7 +115,7 @@ class HF:
 
         if self.check_stability:
             for niter in range(1, self.stability_cycles+1):
-                stability = self._pyscf.stability()
+                stability = self.stability()
 
                 if isinstance(stability, tuple):
                     internal, external = stability
@@ -136,6 +137,12 @@ class HF:
                                         self.nao)
         else:
             self._eri_ao = lib.unpack_tril(self._pyscf.with_df._cderi)
+
+    def stability(self, **kwargs):
+        if self.nelec % 2:
+            return uhf_stability(self._pyscf, **kwargs)
+        else:
+            return rhf_stability(self._pyscf, **kwargs)
     
     @property
     def nao(self):
