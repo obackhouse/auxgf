@@ -1,7 +1,6 @@
 from auxgf import *
 import numpy as np
 from mpi4py import MPI
-from mpi4pyscf import scf
 
 # The density fitting procedure here can be made to be more efficient,
 # i.e. iterating over blocks of the DF auxiliary basis and also doing
@@ -63,8 +62,9 @@ def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
 
     m = np.zeros((rhf.nao, rhf.nao))
 
-    # This won't be split very equally (indices are tril)
-    for i in range(rank, ixQ.shape[0], size):
+    indices = util.mpi.tril_indices_rows(ixQ.shape[0])
+    for i in indices[rank]:
+    #for i in range(rank, ixQ.shape[0], size):
         e, v = build_rmp2_part_direct(gf_occ.e, gf_vir.e, ixQ, Qja, i=i)
         q = np.dot(binv.T, v)
         m += util.einsum('xk,k,yk->xy', q, e, q)

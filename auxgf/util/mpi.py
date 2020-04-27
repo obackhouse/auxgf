@@ -71,10 +71,47 @@ def wait_all():
         comm.recv(source=i)
 
 
+def tril_indices_rows(nrows):
+    ''' Fairly distributes (roughly) the row index of a lower-
+        triangular matrix.
 
+        i.e. nrows=10, size=4: [(0,9,4), (1,8,5), (2,7), (3,6)]
 
+        This isn't exact but for nrows >> size it should be fine
+    '''
 
+    key = [[] for x in range(size)]
+    top = False
 
+    i = 0
+    while True:
+        for n in range(size):
+            key[n].append(top)
+            i += 1
+            if i == nrows:
+                break
 
+        top = not top
+        if i == nrows:
+            break
 
+    indices = list(range(nrows))
+    indices_out = [[] for x in range(size)]
+
+    while True:
+        for n in range(size):
+            if key[n].pop(0):
+                indices_out[n].append(indices.pop(-1))
+            else:
+                indices_out[n].append(indices.pop(0))
+
+            if not len(indices):
+                break
+
+        if not len(indices):
+            break
+
+    indices_out = [tuple(x) for x in indices_out]
+
+    return indices_out
 
