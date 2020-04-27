@@ -6,26 +6,16 @@ try:
 except ImportError:
     mpi = None
 
+from auxgf.util import log
+
 if mpi is not None:
     comm = mpi.COMM_WORLD
     size = comm.Get_size()
     rank = comm.Get_rank()
-    _ops = { 'sum':    mpi.SUM, 
-             'max':    mpi.MAX,
-             'min':    mpi.MIN,
-             'sum':    mpi.SUM,
-             'prod':   mpi.PROD,
-             'land':   mpi.LAND,
-             'lor':    mpi.LOR,
-             'band':   mpi.BAND,
-             'bor':    mpi.BOR,
-             'maxloc': mpi.MAXLOC,
-             'minloc': mpi.MINLOC }
 else:
     comm = None
     size = 1
     rank = 0
-    _ops = None
 
 
 def reduce_and_broadcast(m, op='sum', root=0):
@@ -36,7 +26,30 @@ def reduce_and_broadcast(m, op='sum', root=0):
     if size == 1:
         return m
 
-    op = _ops[op]
+    if op == 'sum': 
+        op = mpi.SUM
+    elif op == 'max': 
+        op = mpi.MAX
+    elif op == 'min': 
+        op = mpi.MIN
+    elif op == 'sum': 
+        op = mpi.SUM
+    elif op == 'prod': 
+        op = mpi.PROD
+    elif op == 'land':
+        op = mpi.LAND
+    elif op == 'lor': 
+        op = mpi.LOR
+    elif op == 'band': 
+        op = mpi.BAND
+    elif op == 'bor': 
+        op = mpi.BOR
+    elif op == 'maxloc': 
+        op = mpi.MAXLOC
+    elif op == 'minloc': 
+        op = mpi.MINLOC
+    else:
+        raise ValueError
 
     m_red = np.zeros_like(m)
     comm.Reduce(m, m_red, op=op, root=root)
@@ -56,3 +69,12 @@ def wait_all():
 
     for i in range(size):
         comm.recv(source=i)
+
+
+
+
+
+
+
+
+

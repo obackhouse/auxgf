@@ -5,7 +5,7 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 from auxgf import util
-from auxgf.util import types, log
+from auxgf.util import types, log, mpi
 
 
 def _set_options(**kwargs):
@@ -23,6 +23,8 @@ def _set_options(**kwargs):
             raise ValueError('%s argument invalid.' % key)
 
     options.update(kwargs)
+
+    options['verbose'] = options['verbose'] and not mpi.rank
 
     return options
 

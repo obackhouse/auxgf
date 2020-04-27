@@ -1,6 +1,7 @@
 from auxgf import *
 import numpy as np
 from mpi4py import MPI
+from mpi4pyscf import scf
 
 # The density fitting procedure here can be made to be more efficient,
 # i.e. iterating over blocks of the DF auxiliary basis and also doing
@@ -99,7 +100,7 @@ if __name__ == '__main__':
     size = comm.Get_size()
     rank = comm.Get_rank()
 
-    m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='cc-pvdz')
+    m = mol.Molecule(atoms='O 0 0 0; C 0 0 1; O 0 0 2', basis='aug-cc-pvdz')
     rhf = hf.RHF(m, with_df=True).run()
 
     eri = rhf.eri_mo  # Cholesky decomposed ERI tensor

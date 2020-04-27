@@ -56,7 +56,7 @@ def _set_options(**kwargs):
     if not isinstance(options['frozen'], tuple):
         options['frozen'] = (options['frozen'], 0)
 
-    options['verbose'] = options['verbose'] and mpi.rank
+    options['verbose'] = options['verbose'] and not mpi.rank
 
     return options
 

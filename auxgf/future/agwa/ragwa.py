@@ -46,7 +46,7 @@ def _set_options(**kwargs):
     if options['scheme'] == 'G0W0':
         options['maxiter'] = 1
 
-    options['verbose'] = options['verbose'] and mpi.rank
+    options['verbose'] = options['verbose'] and not mpi.rank
 
     return options
 

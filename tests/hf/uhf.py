@@ -2,6 +2,7 @@ import numpy as np
 from pyscf import scf
 
 from auxgf import hf, mol
+from auxgf.util import mpi
 
 
 mol1 = mol.Molecule(atoms='H 0 0 0; Be 0 0 1', basis='cc-pvdz', spin=1)
