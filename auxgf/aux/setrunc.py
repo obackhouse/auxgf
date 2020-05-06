@@ -166,7 +166,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         return m, b, v
 
 
-def block_lanczos_1mom(aux, h_phys, **kwargs):
+def block_lanczos_1block(aux, h_phys, **kwargs):
     ''' The above function simplifies significantly in the case of nmom=1.
     '''
     qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
@@ -303,13 +303,15 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     #TODO: debugging mode which checks the moments
 
-    if nmom == 0:
-        return aux.new([], [[],]*aux.nphys)
+    assert nmom != 0 #undefined
 
-    elif nmom == 1:
-        m_occ, b_occ = block_lanczos_1mom(aux.as_occupied(), 
+    #if nmom == 0:
+    #    return aux.new([], [[],]*aux.nphys)
+
+    if nmom == 0:
+        m_occ, b_occ = block_lanczos_1block(aux.as_occupied(), 
                                           h_phys, qr=qr)
-        m_vir, b_vir = block_lanczos_1mom(aux.as_virtual(), 
+        m_vir, b_vir = block_lanczos_1block(aux.as_virtual(), 
                                           h_phys, qr=qr)
 
         t_occ = build_block_tridiag(m_occ, b_occ)
@@ -317,18 +319,18 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     elif method == 'block':
         m_occ, b_occ = block_lanczos(aux.as_occupied(), 
-                                     h_phys, nmom, qr=qr)
+                                     h_phys, nmom-1, qr=qr)
         m_vir, b_vir = block_lanczos(aux.as_virtual(),
-                                     h_phys, nmom, qr=qr)
+                                     h_phys, nmom-1, qr=qr)
 
         t_occ = build_block_tridiag(m_occ, b_occ)
         t_vir = build_block_tridiag(m_vir, b_vir)
 
     else:
         t_occ = band_lanczos(aux.as_occupied(), 
-                             h_phys, nmom, qr=qr)
+                             h_phys, nmom-1, qr=qr)
         t_vir = band_lanczos(aux.as_virtual(),
-                             h_phys, nmom, qr=qr)
+                             h_phys, nmom-1, qr=qr)
 
     e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
     e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
