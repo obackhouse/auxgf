@@ -7,19 +7,45 @@ from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
 import os
 
+try:
+    from tblis_einsum import einsum as tblis_einsum
+except ImportError:
+    tblis_einsum = None
+
 from auxgf.util import types, mkl, log, mpi
 
-use_pyscf_einsum = False
+einsum = 'tblis'  # 'numpy', 'pyscf', 'tblis'
 
 
-''' Wrapper to clear up `optimize` keywords inconsistencies between
-    different versions of numpy.
+''' Wrapper for einsum: choose between implementations, and clear up
+    `optimize` keyword inconsistencies between different versions of
+    numpy.
 '''
 
-einsum = functools.partial(pyscf_einsum if use_pyscf_einsum else np.einsum,
-                           casting='safe',
-                           order='C',
-                           optimize=True)
+numpy_einsum = functools.partial(np.einsum, casting='safe',
+                                 order='C', optimize=True)
+
+pyscf_einsum = functools.partial(pyscf_einsum, casting='safe',
+                                 order='C', optimize=True)
+
+tblis_einsum = functools.partial(tblis_einsum, casting='safe',
+                                 order='C', optimize=True)
+
+def _tblis_einsum(key, *args, **kwargs):
+    # Does tblis_einsum not support Ellipsis in the key?
+    if '...' in key:
+        return numpy_einsum(key, *args, **kwargs)
+    else:
+        return tblis_einsum(key, *args, **kwargs)
+
+if einsum == 'numpy':
+    einsum = numpy_einsum
+elif einsum == 'pyscf':
+    einsum = pyscf_einsum
+elif einsum == 'tblis':
+    einsum = _tblis_einsum
+else:
+    raise ValueError
 
 
 ''' Wrapper for np.linalg to avoid the long names.
