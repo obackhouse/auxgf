@@ -47,7 +47,9 @@ for module,files in modules.items():
             passed = False
 
 sys.stdout.flush()
-mpi.wait_all()
+
+if mpi.size > 1:
+    mpi.wait_all()
 
 if not passed:
     if mpi.size == 1:
@@ -56,7 +58,9 @@ if not passed:
         sys.stdout.write('Some tests failed on proc %d, run individual files to see errors\n' % mpi.rank)
 
 sys.stdout.flush()
-mpi.wait_all()
+
+if mpi.size > 1:
+    mpi.wait_all()
 
 if mpi.rank == 0:
     sys.stdout.write('Runtime: %6.4f s\n' % (time.time() - init_time))
