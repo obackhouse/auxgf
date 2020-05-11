@@ -28,12 +28,13 @@ numpy_einsum = functools.partial(np.einsum, casting='safe',
 pyscf_einsum = functools.partial(pyscf_einsum, casting='safe',
                                  order='C', optimize=True)
 
-tblis_einsum = functools.partial(tblis_einsum, casting='safe',
-                                 order='C', optimize=True)
+if tblis_einsum is not None:
+    tblis_einsum = functools.partial(tblis_einsum, casting='safe',
+                                     order='C', optimize=True)
 
 def _tblis_einsum(key, *args, **kwargs):
     # Does tblis_einsum not support Ellipsis in the key?
-    if '...' in key:
+    if '...' in key or tblis_einsum is None:
         return numpy_einsum(key, *args, **kwargs)
     else:
         return tblis_einsum(key, *args, **kwargs)
