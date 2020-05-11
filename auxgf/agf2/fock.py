@@ -7,6 +7,8 @@ from scipy.optimize import minimize_scalar
 from auxgf import util
 from auxgf.util import types, log, mpi
 
+# If anyone is reading this I sincerely apologise for how shit this code is
+
 
 def _set_options(**kwargs):
     options = { 'diis_space': 8,
@@ -82,8 +84,6 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
     v0 = se.v.copy()
     chempot = se.chempot
     nphys = se.nphys
-    homo = util.amax(e0[e0 < chempot])
-    lumo = util.amin(e0[e0 >= chempot])
 
     frozen = options['frozen']
     if not isinstance(frozen, tuple):
@@ -117,8 +117,8 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
     for nrun in range(1, options['maxruns']+1):
         w, v, chempot, error = _diag_fock_ext(0.0)
 
-        homo = util.amax(e0[e0 < chempot])
-        lumo = util.amin(e0[e0 >= chempot])
+        homo = util.amax(w[w < chempot])
+        lumo = util.amin(w[w >= chempot])
 
         if not (homo is np.nan or lumo is np.nan):
             res = _minimize(homo, lumo)
@@ -213,10 +213,6 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
     v0 = (se[0].v.copy(), se[1].v.copy())
     chempot = (se[0].chempot, se[1].chempot)
     nphys = se[0].nphys
-    homo_a = util.amax(e0[0][e0[0] < chempot[0]])
-    lumo_a = util.amin(e0[0][e0[0] >= chempot[0]])
-    homo_b = util.amax(e0[1][e0[1] < chempot[1]])
-    lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
 
     frozen = options['frozen']
     if not isinstance(frozen, tuple):
@@ -255,11 +251,10 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
         chempot = (chempot_a, chempot_b)
         error = (error_a, error_b)
 
-        homo_a = util.amax(e0[0][e0[0] < chempot[0]])
-        lumo_a = util.amin(e0[0][e0[0] >= chempot[0]])
-
-        homo_b = util.amax(e0[1][e0[1] < chempot[1]])
-        lumo_b = util.amin(e0[1][e0[1] >= chempot[1]])
+        homo_a = util.amax(w_a[w_a < chempot[0]])
+        lumo_a = util.amin(w_b[w_b >= chempot[0]])
+        homo_b = util.amax(w_a[w_a < chempot[1]])
+        lumo_b = util.amin(w_b[w_b >= chempot[1]])
 
         if not (homo_a is np.nan or homo_b is np.nan 
                 or lumo_a is np.nan or lumo_b is np.nan):
