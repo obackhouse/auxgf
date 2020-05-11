@@ -303,11 +303,6 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     #TODO: debugging mode which checks the moments
 
-    assert nmom != 0 #undefined
-
-    #if nmom == 0:
-    #    return aux.new([], [[],]*aux.nphys)
-
     if nmom == 0:
         m_occ, b_occ = block_lanczos_1block(aux.as_occupied(), 
                                           h_phys, qr=qr)
