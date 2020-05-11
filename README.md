@@ -14,6 +14,8 @@ Requirements
 * NumPy
 * SciPy
 * PySCF
+* MPI4Py (optional)
+* TBLIS (optional)
 
 Installation
 ------------
