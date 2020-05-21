@@ -58,7 +58,28 @@ def find_chempot(nphys, nelec, h, occupancy=2.0):
 
     return chempot, error
 
+def _find_chempot(nphys, nelec, h, occupancy=2.0):
+    if isinstance(h, tuple):
+        w, v = h
+    else:
+        w, v = np.linalg.eigh(h)
 
+    nqmo = v.shape[-1]
+    nelecs = np.zeros((nqmo,))
+    sums = np.zeros((nqmo,))
 
+    for i in range(nqmo):
+        nelecs[i] = occupancy * np.dot(v[:nphys,i].T, v[:nphys,i])
+        sums[i] = sums[i-1] + nelecs[i]
 
+        if i > 0:
+            if sums[i-1] <= nelec and nelec <= sums[i]:
+                break
+
+    homo = i-1 if abs(sums[i-1] - nelec) < abs(sums[i] - nelec) else i
+    lumo = homo + 1
+    error = abs(sums[homo] - nelec)
+    chempot = 0.5 * (w[lumo] + w[homo])
+
+    return chempot, error
 
