@@ -2,9 +2,12 @@ from auxgf import *
 import numpy as np
 from mpi4py import MPI
 from pyscf import lib, ao2mo, df
+from pyscf.scf import jk
+from pyscf.df import df_jk
 from scipy import optimize
 from scipy.linalg import blas
 from collections import namedtuple
+import ctypes
 
 comm = MPI.COMM_WORLD
 size = comm.Get_size()
@@ -14,8 +17,46 @@ rank = comm.Get_rank()
 # i.e. iterating over blocks of the DF auxiliary basis and also doing
 # basis-transformations in situ, but this is still be O(n^3) in memory
 
-# Reshape pattern for shitty exchange interactions
 reshape_internal = lambda x, s1, swap, s2 : x.reshape(s1).swapaxes(*swap).reshape(s2)
+
+def mpi_reduce(m, op=MPI.SUM, root=0):
+    is_array = isinstance(m, np.ndarray)
+
+    if size > 1:
+        m_red = np.zeros_like(m)
+        comm.Reduce(np.asarray(m), m_red, op=op, root=root)
+        m = m_red
+        comm.Bcast(m, root=root)
+
+        if not is_array:
+            m = m.ravel()[0]
+
+    return m
+
+def mpi_split(n):
+    # i.e. n = 10, size = 4 -> (3, 3, 2, 2)
+    lst = [n // size + int(n % size > x) for x in range(size)]
+    assert sum(lst) == n
+    return tuple(lst)
+
+to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
+
+_fmmm = ao2mo._ao2mo.libao2mo.AO2MOmmm_bra_nr_s2
+_fdrv = ao2mo._ao2mo.libao2mo.AO2MOnr_e2_drv
+_ftrans = ao2mo._ao2mo.libao2mo.AO2MOtranse2_nr_s2
+
+def fdrv(buf, eri, rdm1):
+    # Some pyscf function for the Fock exchange interaction
+
+    nphys = rdm1.shape[-1]
+    naux = eri.shape[0]
+
+    buf1 = buf[0,:naux]
+
+    rargs = (ctypes.c_int(nphys), (ctypes.c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), ctypes.c_int(0))
+    _fdrv(_ftrans, _fmmm, to_ptr(buf1), to_ptr(eri), to_ptr(rdm1), ctypes.c_int(naux), *rargs)
+
+    return buf1
 
 
 def build_x(ixQ, Qja, nphys, nocc, nvir):
@@ -31,11 +72,7 @@ def build_x(ixQ, Qja, nphys, nocc, nvir):
         x -= np.dot(xja, xia.T)
 
     # Reduce
-    if size > 1:
-        x_red = np.zeros_like(x)
-        comm.Reduce(x, x_red, op=MPI.SUM, root=0)
-        x = x_red
-        comm.Bcast(x, root=0)
+    x = mpi_reduce(x)
 
     return x
 
@@ -87,11 +124,7 @@ def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
         m += np.dot(q * e[None], q.T)
 
     # Reduce
-    if size > 1:
-        m_red = np.zeros_like(m)
-        comm.Reduce(m, m_red, op=MPI.SUM, root=0)
-        m = m_red
-        comm.Bcast(m, root=0)
+    m = mpi_reduce(m)
 
     return m
 
@@ -129,34 +162,43 @@ def build_aux(gf_occ, gf_vir, eri):
 
     return se
 
-def get_fock(eri, rdm1, h1e):
+def get_fock(rdm1, h1e, eri, max_memory=4000, blockdim=240):
     # Gets the Fock matrix (MO basis)
+    # Transforms to AO basis and then back to appease pyscf
 
-    nphys = h1e.shape[0]
-
-    j = np.zeros((nphys, nphys))
+    nphys = rdm1.shape[-1]
+    naux = eri.shape[0]
+    
+    j = np.zeros((nphys*(nphys+1)//2))
     k = np.zeros((nphys, nphys))
 
-    eri = lib.unpack_tril(eri).reshape((-1, nphys**2))
-    rdm1 = rdm1.flatten()
+    rdm1tril = lib.pack_tril(rdm1 + np.tril(rdm1, k=-1))
 
-    for i in range(rank, nphys, size):
-        Qj = eri[:,i*nphys:(i+1)*nphys]
-        jkl = np.dot(Qj.T, eri)
-        j[i] += np.dot(jkl, rdm1)
-        k[i] += np.dot(jkl.reshape((nphys,)*3).swapaxes(0,2).reshape((nphys, -1)), rdm1)
+    max_memory = max_memory - lib.current_memory()[0]
+    blksize = max(4, int(min(blockdim, max_memory*.22e6/8/nphys**2)))
+    mpi_blks = mpi_split(blksize)
+    buf = np.empty((2, mpi_blks[rank], nphys, nphys))
 
-    if size > 1:
-        j_red = np.zeros_like(j)
-        k_red = np.zeros_like(k)
-        comm.Reduce(j, j_red, op=MPI.SUM, root=0)
-        comm.Reduce(k, k_red, op=MPI.SUM, root=0)
-        j = j_red
-        k = k_red
-        comm.Bcast(j, root=0)
-        comm.Bcast(k, root=0)
+    for i in range(0, naux, blksize):
+        s = slice(i+sum(mpi_blks[:rank]), min(i+sum(mpi_blks[:rank+1]), naux))
+        eri1 = eri[s]
 
-    return h1e + j - 0.5 * k
+        rho = np.dot(eri1, rdm1tril)
+        j += np.dot(rho, eri1)
+
+        buf1 = fdrv(buf, eri1, rdm1)
+        buf2 = lib.unpack_tril(eri1, out=buf[1])
+        k += np.dot(buf1.reshape(-1, nphys).T, buf2.reshape(-1, nphys))
+
+    j = mpi_reduce(j)
+    k = mpi_reduce(k)
+
+    j = lib.unpack_tril(j).reshape(rdm1.shape)
+    k = k.reshape(rdm1.shape)
+
+    f = h1e + j - 0.5 * k
+
+    return f
 
 def minimize(obj, bounds, method='brent', maxiter=200, tol=1e-6):
     # Runs the chemical potential minimization with a bunch of different
@@ -202,7 +244,7 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True):
 
     diis = util.DIIS(8)
     h1e = hf.h1e_mo
-    fock = get_fock(eri, rdm1, h1e)
+    fock = get_fock(rdm1, h1e, eri)
     #fock = hf.get_fock(rdm1, basis='mo')
     rdm1_prev = np.zeros_like(rdm1)
 
@@ -228,7 +270,7 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True):
 
             v_phys_occ = v[:hf.nao, w < se.chempot]
             rdm1 = np.dot(v_phys_occ, v_phys_occ.T) * 2
-            fock = get_fock(eri, rdm1, h1e)
+            fock = get_fock(rdm1, h1e, eri)
             #fock = hf.get_fock(rdm1, basis='mo')
 
             fock = diis.update(fock)
@@ -265,13 +307,11 @@ def energy_2body_aux(gf, se):
         e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk, vxl, vxl, dlk)
 
     e2b = 2.0 * np.ravel(e2b)[0]
-
-    if size > 1:
-        e2b = comm.bcast(e2b, root=0)
+    e2b = mpi_reduce(e2b)
 
     return e2b
 
-def run(rhf):
+def run(rhf, maxiter=20, etol=1e-6):
     eri = rhf._pyscf.with_df._cderi
     eri = df_ao2mo(eri, rhf.c, rhf.c, sym_in='s2', sym_out='s2')
 
@@ -280,7 +320,7 @@ def run(rhf):
     se = aux.Aux([], [[],]*rhf.nao, chempot=rhf.chempot)
     e_tot = rhf.e_tot
 
-    for i in range(5):
+    for i in range(maxiter):
         se, rdm1, conv = fock_loop_rhf(se, rhf, rdm1, eri)
         
         e, c = se.eig(rhf.get_fock(rdm1, basis='mo'))
@@ -292,13 +332,13 @@ def run(rhf):
         e_tot_prev = e_tot
         e_1body = rhf.energy_1body(rhf.h1e_mo, rdm1, rhf.get_fock(rdm1, basis='mo'))
         e_1body += rhf.mol.e_nuc
-        e_2body = aux.energy_2body_aux(gf, se)
+        e_2body = energy_2body_aux(gf, se)
         e_tot = e_1body + e_2body
 
         if rank == 0:
             print('E(tot) = %14.8f' % e_tot)
 
-        if abs(e_tot - e_tot_prev) < 1e-6:
+        if abs(e_tot - e_tot_prev) < etol:
             break
 
 
@@ -307,11 +347,18 @@ if __name__ == '__main__':
     rhf = hf.RHF(m, with_df=True).run()
     run(rhf)
 
-    #import IPython
-    #from scipy.optimize.optimize import _minimize_scalar_golden
-    #ipython = IPython.get_ipython()
-    #ipython.magic('load_ext line_profiler')
-    #ipython.magic('lprun -f run run(rhf)')
+    if 0:
+        rhf = hf.RHF(m).run()
+        gf2 = agf2.RAGF2(rhf, nmom=(1,0), verbose=False)
+        gf2.run()
+        print(gf2.e_tot)
+
+    if 0:
+        import IPython
+        ipython = IPython.get_ipython()
+        ipython.magic('load_ext line_profiler')
+        ipython.magic('lprun -f run run(rhf)')
+
 
 
 
