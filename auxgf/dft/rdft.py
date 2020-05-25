@@ -42,6 +42,7 @@ class RDFT(rhf.RHF):
         self.check_stability = False
         self.stability_cycles = 10
         self.with_df = False
+        self.auxbasis = None
 
         self.mol = mol
         self._pyscf = _dft.RKS(self.mol._pyscf, **kwargs)

@@ -91,6 +91,7 @@ class HF:
         self.check_stability = kwargs.pop('check_stability', True)
         self.stability_cycles = kwargs.pop('stability_cycles', 10)
         self.with_df = kwargs.pop('with_df', False)
+        self.auxbasis = kwargs.pop('auxbasis', None)
 
         self._pyscf = method(self.mol._pyscf, **kwargs)
 
@@ -110,6 +111,7 @@ class HF:
     def _run(self, **kwargs):
         if self.with_df:
             self._pyscf = self._pyscf.density_fit()
+            self._pyscf.with_df.auxbasis = self.auxbasis
 
         self._pyscf.run(**kwargs)
 

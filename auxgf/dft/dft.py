@@ -39,6 +39,7 @@ class DFT(hf.HF):
         kwargs['check_stability'] = False
         kwargs['stability_cycles'] = 0
         kwargs['with_df'] = False
+        kwargs['auxbasis'] = None
         kwargs['method'] = kwargs.get('method', dft.RKS)
 
         super().__init__(mol, **kwargs)
