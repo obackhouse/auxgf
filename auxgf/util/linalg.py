@@ -3,6 +3,7 @@
 
 import numpy as np
 import functools
+from pyscf.lib import linalg_helper
 from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
 import os
@@ -301,6 +302,9 @@ def lanczos(array, v0=None, niter=100):
     v[:,niter-1] = w / norm(w)
 
     return t, v
+
+
+davidson = linalg_helper.davidson1
     
 
 def is_hermitian(array):
