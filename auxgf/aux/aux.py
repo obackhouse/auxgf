@@ -310,20 +310,22 @@ class Aux:
                                      ordering=ordering)
 
 
-    def as_hamiltonian(self, h_phys, chempot=0.0):
+    def as_hamiltonian(self, h_phys, chempot=0.0, out=None):
         ''' Expresses the auxiliaries as an extended Hamiltonian.
 
         Parameters
         ----------
         h_phys : (n,n) ndarray
             physical Hamiltonian
+        chempot : float, optional
+            chemical potential on the auxiliary space
+        out : (m,m) ndarray, optional
+            array to store output for efficient control of memory
 
         Returns
         -------
         h_ext : (m,m) ndarray
             extended Hamiltonian
-        chempot : float, optional
-            chemical potential on the auxiliary space
 
         Raises
         ------
@@ -336,11 +338,20 @@ class Aux:
             raise ValueError('physical space of h_phys and couplings '
                              'must match.')
 
-        e = self.e - chempot
 
-        h_ext = np.block([[h_phys, self.v], [self.v.T, np.diag(e)]])
+        if out is None:
+            e = self.e - chempot
+            out = np.block([[h_phys, self.v], [self.v.T, np.diag(e)]])
+        else:
+            sp = slice(None, self.nphys)
+            sa = slice(self.nphys, None)
 
-        return h_ext
+            out[sp,sp] = h_phys
+            out[sp,sa] = self.v
+            out[sa,sp] = self.v.T
+            out[sa,sa][np.diag_indices(self.naux)] = self.e - chempot
+
+        return out
 
 
     def as_occupied(self):
@@ -401,7 +412,7 @@ class Aux:
         return aux
 
 
-    def dot(self, h_phys, vec):
+    def dot(self, h_phys, vec, chempot=0.0):
         ''' Dot-product of `self.as_hamiltonian(h_phys)` with `vec`,
             without having to explicitly construct the extended
             Hamiltonian.
@@ -412,6 +423,8 @@ class Aux:
             physical Hamiltonian
         vec : (m,...) ndarray
             vector
+        chempot : float, optional
+            chemical potential on the auxiliary space
 
         Returns
         -------
@@ -441,7 +454,7 @@ class Aux:
         out[sp] += np.dot(self.v, vec[sa])
         
         out[sa]  = np.dot(vec[sp].T, self.v).T
-        out[sa] += self.e[:,None] * vec[sa]
+        out[sa] += (self.e[:,None] - chempot) * vec[sa]
 
         return out.reshape(input_shape)
 
