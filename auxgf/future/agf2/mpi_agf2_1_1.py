@@ -6,6 +6,8 @@ from pyscf.scf import jk
 from pyscf.df import df_jk
 from scipy import optimize
 from scipy.linalg import blas
+import scipy.linalg
+import scipy.sparse.linalg
 from collections import namedtuple
 import ctypes
 
@@ -200,7 +202,7 @@ def get_fock(rdm1, h1e, eri, max_memory=4000, blockdim=240):
 
     return f
 
-def minimize(obj, bounds, method='brent', maxiter=200, tol=1e-6):
+def minimize(obj, bounds=(None, None), method='brent', maxiter=200, tol=1e-6, x0=None):
     # Runs the chemical potential minimization with a bunch of different
     # available methods, uses OpenMP on the root process only.
 
@@ -211,13 +213,13 @@ def minimize(obj, bounds, method='brent', maxiter=200, tol=1e-6):
         kwargs = dict(method='golden', bounds=bounds, options=dict(maxiter=maxiter, xtol=tol))
         f = optimize.minimize_scalar
     elif method == 'newton':
-        kwargs = dict(method='TNC', bounds=[bounds], x0=[sum(bounds)/2], options=dict(maxiter=maxiter, xtol=tol))
+        kwargs = dict(method='TNC', bounds=[bounds], x0=x0, options=dict(maxiter=maxiter, xtol=tol))
         f = optimize.minimize
     elif method == 'bfgs':
-        kwargs = dict(method='L-BFGS-B', bounds=[bounds], x0=[sum(bounds)/2], options=dict(maxiter=maxiter, ftol=tol))
+        kwargs = dict(method='L-BFGS-B', bounds=[bounds], x0=x0, options=dict(maxiter=maxiter, ftol=tol))
         f = optimize.minimize
     elif method == 'lstsq':
-        kwargs = dict(method='SLSQP', bounds=[bounds], x0=[sum(bounds)/2], options=dict(maxiter=maxiter, ftol=tol))
+        kwargs = dict(method='SLSQP', x0=x0, options=dict(maxiter=maxiter, ftol=tol))
         f = optimize.minimize
     else:
         raise ValueError
@@ -233,22 +235,24 @@ def minimize(obj, bounds, method='brent', maxiter=200, tol=1e-6):
 
     return opt
 
-def fock_loop_rhf(se, hf, rdm1, eri, debug=True):
+def fock_loop_rhf(se, hf, rdm1, eri, debug=True, test=False, opt_method='lstsq'):
     # Simple version of auxgf.agf2.fock.fock_loop_rhf
 
     def diag_fock_ext(cpt):
-        w, v = se.eig(fock, chempot=cpt)
-        #cpt, err = util.find_chempot(hf.nao, hf.nelec, h=(w, v))
+        se.as_hamiltonian(fock, chempot=cpt, out=buf)
+        w, v = util.eigh(buf)
         cpt, err = util.chempot._find_chempot(hf.nao, hf.nelec, h=(w, v))
         return w, v, cpt, err
+    if test: return diag_fock_ext
 
     diis = util.DIIS(8)
     h1e = hf.h1e_mo
     fock = get_fock(rdm1, h1e, eri)
-    #fock = hf.get_fock(rdm1, basis='mo')
     rdm1_prev = np.zeros_like(rdm1)
 
     obj = lambda x : abs((diag_fock_ext(x))[-1])
+    buf = np.zeros((se.nphys + se.naux,)*2)
+    w, v = se.eig(fock)
 
     if debug and rank == 0:
         print('%17s %17s %17s' % ('-'*17, '-'*17, '-'*17))
@@ -262,7 +266,7 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True):
         hoqmo = np.max(w[w < se.chempot])
         luqmo = np.min(w[w >= se.chempot])
 
-        opt = minimize(lambda x: abs((diag_fock_ext(x))[-1]), (hoqmo, luqmo), method='golden')
+        opt = minimize(lambda x: abs((diag_fock_ext(x))[-1]), bounds=(hoqmo, luqmo), x0=se.chempot, method=opt_method)
         se._ener -= opt.x
 
         for niter2 in range(50):
@@ -271,7 +275,6 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True):
             v_phys_occ = v[:hf.nao, w < se.chempot]
             rdm1 = np.dot(v_phys_occ, v_phys_occ.T) * 2
             fock = get_fock(rdm1, h1e, eri)
-            #fock = hf.get_fock(rdm1, basis='mo')
 
             fock = diis.update(fock)
             derr = np.linalg.norm(rdm1 - rdm1_prev)
@@ -345,7 +348,9 @@ def run(rhf, maxiter=20, etol=1e-6):
 if __name__ == '__main__':
     m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='aug-cc-pvdz')
     rhf = hf.RHF(m, with_df=True).run()
-    run(rhf)
+
+    if 1:
+        run(rhf)
 
     if 0:
         rhf = hf.RHF(m).run()
@@ -357,7 +362,8 @@ if __name__ == '__main__':
         import IPython
         ipython = IPython.get_ipython()
         ipython.magic('load_ext line_profiler')
-        ipython.magic('lprun -f run run(rhf)')
+        diag_fock_ext = fock_loop_rhf(None, None, None, None, test=True)
+        ipython.magic('lprun -f fock_loop_rhf run(rhf)')
 
 
 
