@@ -6,20 +6,18 @@ from pyscf.scf import jk
 from pyscf.df import df_jk
 from scipy import optimize
 from scipy.linalg import blas
-import scipy.linalg
-import scipy.sparse.linalg
-from collections import namedtuple
 import ctypes
 
 comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
-# The density fitting procedure here can be made to be more efficient,
-# i.e. iterating over blocks of the DF auxiliary basis and also doing
-# basis-transformations in situ, but this is still be O(n^3) in memory
-
 reshape_internal = lambda x, s1, swap, s2 : x.reshape(s1).swapaxes(*swap).reshape(s2)
+
+DF_MAXBLK = 120
+OPT_MAXITER = 200
+OPT_XTOL = 1e-6
+DEBUG_FOCK = True
 
 def mpi_reduce(m, op=MPI.SUM, root=0):
     is_array = isinstance(m, np.ndarray)
@@ -41,77 +39,72 @@ def mpi_split(n):
     assert sum(lst) == n
     return tuple(lst)
 
-to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
+def _reorder_fortran(a, trans_a=False):
+    if a.flags.c_contiguous:
+        return np.array(a.T, copy=False, order='F'), not trans_a
+    else:
+        return np.array(a, copy=False, order='F'), trans_a
 
-_fmmm = ao2mo._ao2mo.libao2mo.AO2MOmmm_bra_nr_s2
-_fdrv = ao2mo._ao2mo.libao2mo.AO2MOnr_e2_drv
-_ftrans = ao2mo._ao2mo.libao2mo.AO2MOtranse2_nr_s2
+def _reorder_c(a, trans_a=False):
+    if a.flags.f_contiguous:
+        return np.array(a.T, copy=False, order='C'), not trans_a
+    else:
+        return np.array(a, copy=False, order='C'), trans_a
 
-def fdrv(buf, eri, rdm1):
-    # Some pyscf function for the Fock exchange interaction
+_is_contiguous = lambda a: a.flags.c_contiguous or a.flags.f_contiguous
 
-    nphys = rdm1.shape[-1]
-    naux = eri.shape[0]
+def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
+    # Fortran memory layout so we reorder memory without copying, and then
+    # form c^T, finally converting to C layout without copying.
 
-    buf1 = buf[0,:naux]
+    if not _is_contiguous(a) or not _is_contiguous(b):
+        print('WARNING: DGEMM called on non-contiguous data')
 
-    rargs = (ctypes.c_int(nphys), (ctypes.c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), ctypes.c_int(0))
-    _fdrv(_ftrans, _fmmm, to_ptr(buf1), to_ptr(eri), to_ptr(rdm1), ctypes.c_int(naux), *rargs)
+    m, k = a.shape
+    n = b.shape[1]
+    assert k == b.shape[0]
 
-    return buf1
+    a, ta = _reorder_fortran(a)
+    b, tb = _reorder_fortran(b)
 
+    if c is None:
+        c = np.zeros((m, n), dtype=np.float64, order='C')
+
+    if m == 0 or n == 0 or k == 0:
+        return c
+
+    c, tc = _reorder_fortran(c)
+
+    c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, trans_a=not tb, trans_b=not ta)
+
+    c, tc = _reorder_c(c)
+
+    return c
+
+dot = np.dot
 
 def build_x(ixQ, Qja, nphys, nocc, nvir):
     # Builds the X array, entirely equivalent to the zeroth-order moment of the self-energy
 
     x = np.zeros((nphys, nphys))
 
+    buf1 = np.zeros((nphys, nocc * nvir))
+    buf2 = np.zeros((nocc * nphys, nvir))
+
     for i in range(rank, nocc, size):
-        xja = np.dot(ixQ[i*nphys:(i+1)*nphys], Qja)
-        xia = np.dot(ixQ, Qja[:,i*nvir:(i+1)*nvir])
+        xja = dot(ixQ[i*nphys:(i+1)*nphys], Qja, out=buf1)
+        xia = dot(ixQ, Qja[:,i*nvir:(i+1)*nvir], out=buf2)
         xia = reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
-        x += np.dot(xja, xja.T) * 2
-        x -= np.dot(xja, xia.T)
+        x = dgemm(xja, xja.T, alpha=2, beta=1, c=x)
+        x = dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
 
     # Reduce
     x = mpi_reduce(x)
 
     return x
 
-def build_rmp2_part_direct(eo, ev, ixQ, Qja, nphys, nocc, nvir, i=0):
-    # Builds all (i,j,a) auxiliaries for a single index i using density fitted integrals
-
-    pos_factor = np.sqrt(0.5)
-    neg_factor = np.sqrt(1.5)
-
-    nja = i * nvir
-
-    e = np.zeros((nja*2+nvir))
-    v = np.zeros((nphys, nja*2+nvir))
-
-    m1 = slice(None, nja)
-    m2 = slice(nja, 2*nja)
-    m3 = slice(2*nja, 2*nja+nvir)
-
-    xQ = ixQ[i*nphys:(i+1)*nphys]
-    Qa = Qja[:,i*nvir:(i+1)*nvir]
-
-    vija = np.dot(xQ, Qja[:,:i*nvir]).reshape((nphys, -1))
-    vjia = np.dot(ixQ[:i*nphys], Qa)
-    vjia = reshape_internal(vjia, (i, nphys, nvir), (0,1), (nphys, nja))
-    viia = np.dot(xQ, Qa)
-
-    e[m1] = e[m2] = eo[i] + np.subtract.outer(eo[:i], ev).ravel()
-    e[m3] = 2 * eo[i] - ev
-
-    v[:,m1] = neg_factor * (vija - vjia)
-    v[:,m2] = pos_factor * (vija + vjia)
-    v[:,m3] = viia
-
-    return e, v
-
 def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
-    # Builds the M array
+    # Builds the M array, with contributions from blocks of auxiliaries
 
     nphys = gf_occ.nphys
     nocc = gf_occ.naux
@@ -119,18 +112,55 @@ def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
 
     m = np.zeros((nphys, nphys))
 
+    eo, ev = gf_occ.e, gf_vir.e
     indices = util.mpi.tril_indices_rows(nocc)
+    pos_factor = np.sqrt(0.5)
+    neg_factor = np.sqrt(1.5)
+
     for i in indices[rank]:
-        e, v = build_rmp2_part_direct(gf_occ.e, gf_vir.e, ixQ, Qja, nphys, nocc, nvir, i=i)
-        q = np.dot(binv.T, v)
-        m += np.dot(q * e[None], q.T)
+        xQ = ixQ[i*nphys:(i+1)*nphys]
+        Qa = Qja[:,i*nvir:(i+1)*nvir]
+
+        vija = dot(xQ, Qja[:,:i*nvir]).reshape((nphys, -1))
+        vjia = dot(ixQ[:i*nphys], Qa)
+        vjia = reshape_internal(vjia, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+        viia = dot(xQ, Qa)
+
+        ea = eb = eo[i] + np.subtract.outer(eo[:i], ev).ravel()
+        ec = 2 * eo[i] - ev
+
+        va = neg_factor * (vija - vjia)
+        vb = pos_factor * (vija + vjia)
+        vc = viia
+
+        qa = dot(binv.T, va)
+        qb = dot(binv.T, vb)
+        qc = dot(binv.T, vc)
+
+        m = dgemm(qa * ea[None], qa.T, c=m, beta=1)
+        m = dgemm(qb * eb[None], qb.T, c=m, beta=1)
+        m = dgemm(qc * ec[None], qc.T, c=m, beta=1)
 
     # Reduce
     m = mpi_reduce(m)
 
     return m
 
-def df_ao2mo(eri, ci, cj, sym_in='s2', sym_out='s2'):
+def _get_df_blocks(eri, maxblk=DF_MAXBLK):
+    # Get slices to iterate over blocks of the DF integrals in the current
+    # process only.
+
+    naux = eri.shape[0]
+    blks = mpi_split(naux)
+
+    start = sum(blks[:rank])
+    stop = min(sum(blks[:rank+1]), naux)
+
+    return [slice(start+i*maxblk, min(start+(i+1)*maxblk, stop)) 
+            for i in range(blks[rank] // maxblk + 1)]
+
+
+def df_ao2mo(eri, ci, cj, sym_in='s2', sym_out='s2', maxblk=DF_MAXBLK):
     # ao2mo for density fitted integrals with specific input and output symmetry
     
     naux = eri.shape[0]
@@ -138,8 +168,10 @@ def df_ao2mo(eri, ci, cj, sym_in='s2', sym_out='s2'):
     i, j = ci.shape[1], cj.shape[1]
 
     Qij = np.zeros((naux, i*(i+1)//2 if sym_out == 's2' else i*j))
-    # should we do this in blocks?
-    Qij = ao2mo._ao2mo.nr_e2(eri, cij, sij, aosym=sym_in, mosym=sym_out, out=Qij)
+
+    for s in _get_df_blocks(eri, maxblk):
+        Qij[s] = ao2mo._ao2mo.nr_e2(eri[s], cij, sij, out=Qij[s],
+                                    aosym=sym_in, mosym=sym_out)
 
     return Qij
 
@@ -159,12 +191,17 @@ def build_aux(gf_occ, gf_vir, eri):
     m = build_m(gf_occ, gf_vir, ixQ, Qja, binv)
 
     e, c = util.eigh(m)
-    c = np.dot(b.T, c[:nphys])
+    c = dot(b.T, c[:nphys])
     se = gf_occ.new(e, c)
 
     return se
 
-def get_fock(rdm1, h1e, eri, max_memory=4000, blockdim=240):
+to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
+_fmmm = ao2mo._ao2mo.libao2mo.AO2MOmmm_bra_nr_s2
+_fdrv = ao2mo._ao2mo.libao2mo.AO2MOnr_e2_drv
+_ftrans = ao2mo._ao2mo.libao2mo.AO2MOtranse2_nr_s2
+
+def get_fock(rdm1, h1e, eri, maxblk=DF_MAXBLK):
     # Gets the Fock matrix (MO basis)
     # Transforms to AO basis and then back to appease pyscf
 
@@ -175,22 +212,20 @@ def get_fock(rdm1, h1e, eri, max_memory=4000, blockdim=240):
     k = np.zeros((nphys, nphys))
 
     rdm1tril = lib.pack_tril(rdm1 + np.tril(rdm1, k=-1))
+    rargs = (ctypes.c_int(nphys), (ctypes.c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), ctypes.c_int(0))
+    buf = np.empty((2, DF_MAXBLK, nphys, nphys))
 
-    max_memory = max_memory - lib.current_memory()[0]
-    blksize = max(4, int(min(blockdim, max_memory*.22e6/8/nphys**2)))
-    mpi_blks = mpi_split(blksize)
-    buf = np.empty((2, mpi_blks[rank], nphys, nphys))
-
-    for i in range(0, naux, blksize):
-        s = slice(i+sum(mpi_blks[:rank]), min(i+sum(mpi_blks[:rank+1]), naux))
+    for s in _get_df_blocks(eri, maxblk):
         eri1 = eri[s]
 
-        rho = np.dot(eri1, rdm1tril)
-        j += np.dot(rho, eri1)
+        rho = dot(eri1, rdm1tril)
+        j += dot(rho, eri1)
 
-        buf1 = fdrv(buf, eri1, rdm1)
+        buf1 = buf[0,:eri1.shape[0]]
+        _fdrv(_ftrans, _fmmm, to_ptr(buf1), to_ptr(eri1), to_ptr(rdm1), ctypes.c_int(naux), *rargs)
+
         buf2 = lib.unpack_tril(eri1, out=buf[1])
-        k += np.dot(buf1.reshape(-1, nphys).T, buf2.reshape(-1, nphys))
+        k = dgemm(buf1.reshape(-1, nphys).T, buf2.reshape(-1, nphys), c=k, beta=1)
 
     j = mpi_reduce(j)
     k = mpi_reduce(k)
@@ -202,9 +237,12 @@ def get_fock(rdm1, h1e, eri, max_memory=4000, blockdim=240):
 
     return f
 
-def minimize(obj, bounds=(None, None), method='brent', maxiter=200, tol=1e-6, x0=None):
+def minimize(obj, bounds=(None, None), method='brent', maxiter=OPT_MAXITER, tol=OPT_XTOL, x0=None):
     # Runs the chemical potential minimization with a bunch of different
     # available methods, uses OpenMP on the root process only.
+    # Best methods are golden and lstsq, golden uses more function calls with less
+    # additional overhead, whereas lstsq uses fewer function calls and more overhead,
+    # lstsq is best unless we efficiently parallelise the objective function.
 
     if method == 'brent':
         kwargs = dict(method='bounded', bounds=bounds, options=dict(maxiter=maxiter, xatol=tol))
@@ -221,6 +259,9 @@ def minimize(obj, bounds=(None, None), method='brent', maxiter=200, tol=1e-6, x0
     elif method == 'lstsq':
         kwargs = dict(method='SLSQP', x0=x0, options=dict(maxiter=maxiter, ftol=tol))
         f = optimize.minimize
+    elif method == 'stochastic':
+        kwargs = dict(bounds=[(-5, 5)], maxiter=maxiter, tol=tol)
+        f = optimize.differential_evolution
     else:
         raise ValueError
 
@@ -235,7 +276,7 @@ def minimize(obj, bounds=(None, None), method='brent', maxiter=200, tol=1e-6, x0
 
     return opt
 
-def fock_loop_rhf(se, hf, rdm1, eri, debug=True, test=False, opt_method='lstsq'):
+def fock_loop_rhf(se, hf, rdm1, eri, debug=DEBUG_FOCK, opt_method='lstsq'):
     # Simple version of auxgf.agf2.fock.fock_loop_rhf
 
     def diag_fock_ext(cpt):
@@ -243,7 +284,6 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True, test=False, opt_method='lstsq')
         w, v = util.eigh(buf)
         cpt, err = util.chempot._find_chempot(hf.nao, hf.nelec, h=(w, v))
         return w, v, cpt, err
-    if test: return diag_fock_ext
 
     diis = util.DIIS(8)
     h1e = hf.h1e_mo
@@ -273,7 +313,7 @@ def fock_loop_rhf(se, hf, rdm1, eri, debug=True, test=False, opt_method='lstsq')
             w, v, se.chempot, error = diag_fock_ext(0)
 
             v_phys_occ = v[:hf.nao, w < se.chempot]
-            rdm1 = np.dot(v_phys_occ, v_phys_occ.T) * 2
+            rdm1 = dot(v_phys_occ, v_phys_occ.T) * 2
             fock = get_fock(rdm1, h1e, eri)
 
             fock = diis.update(fock)
@@ -362,8 +402,7 @@ if __name__ == '__main__':
         import IPython
         ipython = IPython.get_ipython()
         ipython.magic('load_ext line_profiler')
-        diag_fock_ext = fock_loop_rhf(None, None, None, None, test=True)
-        ipython.magic('lprun -f fock_loop_rhf run(rhf)')
+        ipython.magic('lprun -f run run(rhf, maxiter=5)')
 
 
 
