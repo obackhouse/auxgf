@@ -213,16 +213,17 @@ def get_fock(rdm1, h1e, eri, maxblk=DF_MAXBLK):
 
     rdm1tril = lib.pack_tril(rdm1 + np.tril(rdm1, k=-1))
     rargs = (ctypes.c_int(nphys), (ctypes.c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), ctypes.c_int(0))
-    buf = np.empty((2, DF_MAXBLK, nphys, nphys))
+    buf = np.empty((2, maxblk, nphys, nphys))
 
     for s in _get_df_blocks(eri, maxblk):
         eri1 = eri[s]
+        naux_block = eri1.shape[0]
 
         rho = dot(eri1, rdm1tril)
         j += dot(rho, eri1)
 
-        buf1 = buf[0,:eri1.shape[0]]
-        _fdrv(_ftrans, _fmmm, to_ptr(buf1), to_ptr(eri1), to_ptr(rdm1), ctypes.c_int(naux), *rargs)
+        buf1 = buf[0,:naux_block]
+        _fdrv(_ftrans, _fmmm, to_ptr(buf1), to_ptr(eri1), to_ptr(rdm1), ctypes.c_int(naux_block), *rargs)
 
         buf2 = lib.unpack_tril(eri1, out=buf[1])
         k = dgemm(buf1.reshape(-1, nphys).T, buf2.reshape(-1, nphys), c=k, beta=1)
@@ -389,7 +390,7 @@ if __name__ == '__main__':
     m = mol.Molecule(atoms='O 0 0 0; O 0 0 1', basis='aug-cc-pvdz')
     rhf = hf.RHF(m, with_df=True).run()
 
-    if 1:
+    if 0:
         run(rhf)
 
     if 0:
@@ -398,11 +399,11 @@ if __name__ == '__main__':
         gf2.run()
         print(gf2.e_tot)
 
-    if 0:
+    if 1:
         import IPython
         ipython = IPython.get_ipython()
         ipython.magic('load_ext line_profiler')
-        ipython.magic('lprun -f run run(rhf, maxiter=5)')
+        ipython.magic('lprun -f build_m run(rhf, maxiter=5)')
 
 
 
