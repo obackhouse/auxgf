@@ -62,4 +62,3 @@ class ADC2:
     @property
     def ea(self):
         return self._pyscf.ea_adc()[:2]
-    
