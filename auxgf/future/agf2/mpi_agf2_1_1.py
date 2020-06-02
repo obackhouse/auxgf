@@ -98,7 +98,6 @@ def build_x(ixQ, Qja, nphys, nocc, nvir):
         x = dgemm(xja, xja.T, alpha=2, beta=1, c=x)
         x = dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
 
-    # Reduce
     x = mpi_reduce(x)
 
     return x
@@ -141,7 +140,6 @@ def build_m(gf_occ, gf_vir, ixQ, Qja, binv):
         m = dgemm(qb * eb[None], qb.T, c=m, beta=1)
         m = dgemm(qc * ec[None], qc.T, c=m, beta=1)
 
-    # Reduce
     m = mpi_reduce(m)
 
     return m
@@ -172,6 +170,8 @@ def df_ao2mo(eri, ci, cj, sym_in='s2', sym_out='s2', maxblk=DF_MAXBLK):
     for s in _get_df_blocks(eri, maxblk):
         Qij[s] = ao2mo._ao2mo.nr_e2(eri[s], cij, sij, out=Qij[s],
                                     aosym=sym_in, mosym=sym_out)
+
+    Qij = mpi_reduce(Qij)
 
     return Qij
 
@@ -238,7 +238,7 @@ def get_fock(rdm1, h1e, eri, maxblk=DF_MAXBLK):
 
     return f
 
-def minimize(obj, bounds=(None, None), method='brent', maxiter=OPT_MAXITER, tol=OPT_XTOL, x0=None):
+def minimize(obj, bounds=(None, None), method='brent', maxiter=OPT_MAXITER, tol=OPT_XTOL, x0=None, root_with_omp=False):
     # Runs the chemical potential minimization with a bunch of different
     # available methods, uses OpenMP on the root process only.
     # Best methods are golden and lstsq, golden uses more function calls with less
@@ -266,14 +266,18 @@ def minimize(obj, bounds=(None, None), method='brent', maxiter=OPT_MAXITER, tol=
     else:
         raise ValueError
 
-    opt = None
+    if root_with_omp:
+        opt = None
 
-    if rank == 0:
-        with lib.with_omp_threads(size):
-            opt = f(obj, **kwargs)
+        if rank == 0:
+            with lib.with_omp_threads(size):
+                opt = f(obj, **kwargs)
 
-    if size > 1:
-        opt = comm.bcast(opt, root=0)
+        if size > 1:
+            opt = comm.bcast(opt, root=0)
+
+    else:
+        opt = f(obj, **kwargs)
 
     return opt
 
