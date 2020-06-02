@@ -6,6 +6,7 @@ import functools
 from pyscf.lib import linalg_helper
 from pyscf.lib import einsum as pyscf_einsum
 from pyscf.lib import direct_sum as pyscf_dirsum
+from scipy.linalg import blas
 import os
 
 try:
@@ -58,6 +59,81 @@ eigh = np.linalg.eigh
 dots = np.linalg.multi_dot
 qr = np.linalg.qr
 eigvalsh = np.linalg.eigvalsh
+
+
+def _reorder_fortran(a, trans_a=False):
+    ''' Reorders array into Fortran memory contiguity.
+    '''
+
+    if a.flags.c_contiguous:
+        return np.array(a.T, copy=False, order='F'), not trans_a
+    else:
+        return np.array(a, copy=False, order='F'), trans_a
+
+def _reorder_c(a, trans_a=False):
+    ''' Reorders array into C memory contiguity.
+    '''
+
+    if a.flags.f_contiguous:
+        return np.array(a.T, copy=False, order='C'), not trans_a
+    else:
+        return np.array(a, copy=False, order='C'), trans_a
+
+_is_contiguous = lambda a: a.flags.c_contiguous or a.flags.f_contiguous
+
+
+def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
+    ''' Performs dgemm in Fortran memory alignment without copying.
+        Input matrix should be contiguous (either F or C).
+    
+    Parameters
+    ----------
+    a : array
+        input matrix a
+    b : array
+        input matrix b
+    c : array, optional
+        output matrix c, if None then it is allocated inside the
+        function, default None
+    alpha : float, optional
+        scalar factor for matrix a
+    beta : float, optional
+        scalar factor for matrix c
+
+    Returns
+    -------
+    c : ndarray
+        output matrix
+    '''
+
+    #FIXME: this needs testing better - currently this should only be
+    # used where it has been tested against np.dot specifically for 
+    # that use case!
+
+    if not _is_contiguous(a) or not _is_contiguous(b):
+        log.warn('DGEMM called on non-contiguous data')
+
+    m, k = a.shape
+    n = b.shape[1]
+    assert k == b.shape[0]
+
+    a, ta = _reorder_fortran(a)
+    b, tb = _reorder_fortran(b)
+
+    if c is None:
+        c = np.zeros((m, n), dtype=np.float64, order='C')
+
+    if m == 0 or n == 0 or k == 0:
+        return c
+
+    c, tc = _reorder_fortran(c)
+
+    c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, 
+                   trans_a=not tb, trans_b=not tb)
+
+    c, tc = _reorder_c(c)
+
+    return c
 
 
 def qr_unsafe(a):
@@ -576,6 +652,35 @@ def bypass_empty_ndarray(array, func):
 
 def amax(x): return bypass_empty_ndarray(x, np.max)
 def amin(x): return bypass_empty_ndarray(x, np.min)
+
+
+def sparsity(array, tol=1e-14):
+    ''' Returns the sparsity value of a matrix, higher value means
+        more zero elements.
+
+    Parameters
+    ----------
+    array : array
+        input array
+    tol : float, optional
+        elements with an absolute value below this are assumed zero
+
+    Returns
+    -------
+    val : float
+        sparsity value
+    '''
+
+    mask = np.absolute(array) < tol
+
+    return np.sum(mask) / array.size
+
+def density(array, tol=1e-14):
+    ''' Returns the density value of a matrix, higher value means
+        more zero elements. Equal to 1 - sparsity.
+    '''
+
+    return 1.0 - sparsity(array, tol=tol)
 
 
 
