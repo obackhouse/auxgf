@@ -1,5 +1,7 @@
 ''' Class to perform second-order algebraic diagrammatric construction
     theory for restricted references.
+
+    Derivation and algorithm due to Banerjee & Sokolov.
 '''
 
 import numpy as np
