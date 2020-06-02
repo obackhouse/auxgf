@@ -1,6 +1,8 @@
 ''' Functions to run auxgf in parallel.
 '''
 
+#TODO: add tests
+
 try:
     from mpi4py import MPI as mpi
 except ImportError:
@@ -22,6 +24,8 @@ def reduce_and_broadcast(m, op='sum', root=0):
     ''' Reduce a matrix onto the root process and then broadcast it
         to all other processes.
     '''
+
+    is_array = isinstance(m, np.ndarray)
 
     if size == 1:
         return m
@@ -52,10 +56,13 @@ def reduce_and_broadcast(m, op='sum', root=0):
         raise ValueError
 
     m_red = np.zeros_like(m)
-    comm.Reduce(m, m_red, op=op, root=root)
+    comm.Reduce(np.asarray(m), m_red, op=op, root=root)
 
     m = m_red
     comm.Bcast(m, root=0)
+
+    if not is_array:
+        m = m.ravel()[0]
 
     return m
 
@@ -114,4 +121,16 @@ def tril_indices_rows(nrows):
     indices_out = [tuple(x) for x in indices_out]
 
     return indices_out
+
+
+def split_int(n):
+    ''' Splits an integer across the ranks.
+
+        i.e. n=10, size=4: [3, 3, 2, 2]
+    '''
+
+    lst = [n // size + int(n % size > x) for x in range(size)]
+
+    return lst
+
 
