@@ -12,3 +12,11 @@ adc2r1 = adc.ADC2(rhf1).run()
 adc2u1 = adc.ADC2(uhf1).run()
 
 assert np.allclose(adc2r1.e_tot, [adc2u1.e_tot])
+
+adc2r2 = adc.RADC2(rhf1, verbose=False).run()
+
+assert np.allclose(adc2r1.ip[0], adc2r2.ip[0])
+
+adc2r2 = adc.RADC2(rhf1, method='ea', verbose=False).run()
+
+assert np.allclose(adc2r1.ea[0], adc2r2.ea[0])
