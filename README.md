@@ -17,6 +17,18 @@ Requirements
 * MPI4Py (optional)
 * TBLIS (optional)
 
+Features
+--------
+
+* Object-oriented implementation of an auxiliary space
+* Auxiliary second-order Green's function perturbation theory for restricted (RAGF2) and unrestricted (UAGF2) references
+* Optimised MPI Parallel, density-fitted RAGF2(None,0) calculations (OptRAGF2)
+* Spin-component-scaled SCS-RAGF2 and SCS-UAGF2 calculations, along with SCS-MP2 via zeroth iteration
+* Second-order algebraic diagrammatic construction for restricted (RADC2) references
+* Spin-component-scaled SCS-RADC2 calculations
+* Auxiliary GW calculations for restricted (RAGWA) references, with a number of self-consistency options
+* Interface to many other PySCF methods
+
 Installation
 ------------
 
