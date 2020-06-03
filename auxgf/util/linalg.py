@@ -129,7 +129,7 @@ def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
     c, tc = _reorder_fortran(c)
 
     c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, 
-                   trans_a=not tb, trans_b=not tb)
+                   trans_a=not tb, trans_b=not ta)
 
     c, tc = _reorder_c(c)
 
