@@ -145,6 +145,10 @@ class OptRAGF2:
         self.options = _set_options(**kwargs)
         self._timer = util.Timer()
 
+        if mpi.mpi is None:
+            log.warn('No MPI4Py installation detected, OptRAGF2 will '
+                     'therefore run in serial.')
+
         self.setup()
 
 
