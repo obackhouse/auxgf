@@ -9,6 +9,7 @@ from auxgf.util import einsum, types
 
 
 restore = _pyscf_ao2mo.restore
+conc_mos = _pyscf_ao2mo.incore._conc_mos
 
 
 def ao2mo_2d(array, c_a, c_b): 
