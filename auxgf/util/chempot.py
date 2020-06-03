@@ -34,37 +34,6 @@ def find_chempot(nphys, nelec, h, occupancy=2.0):
     else:
         w, v = np.linalg.eigh(h)
 
-    nelecs = np.einsum('ij,ij->j', v[:nphys,:], v[:nphys,:])
-    nelecs *= occupancy
-
-    sums = np.cumsum(nelecs)
-
-    i = np.searchsorted(sums, nelec)
-
-    error_up = sums[i] - nelec
-    error_dn = sums[i-1] - nelec
-
-    if abs(error_up) < abs(error_dn):
-        homo = i
-        lumo = i+1
-        error = error_up
-    else:
-        homo = i-1
-        lumo = i
-        error = error_dn
-
-    chempot = 0.5 * (w[lumo] + w[homo])
-
-    return chempot, error
-
-def _find_chempot(nphys, nelec, h, occupancy=2.0):
-    # Much more efficient than the above
-
-    if isinstance(h, tuple):
-        w, v = h
-    else:
-        w, v = np.linalg.eigh(h)
-
     nqmo = v.shape[-1]
     sum_cur = 0.0
     sum_prv = 0.0
@@ -84,5 +53,5 @@ def _find_chempot(nphys, nelec, h, occupancy=2.0):
 
     return chempot, error
 
-# find_chempot = _find_chempot
-# ^^^ are we ready to progress this relationship or wot
+# Legacy:
+_find_chempot = find_chempot
