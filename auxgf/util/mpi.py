@@ -3,6 +3,8 @@
 
 #TODO: add tests
 
+import numpy as np
+
 try:
     from mpi4py import MPI as mpi
 except ImportError:
@@ -20,7 +22,7 @@ else:
     rank = 0
 
 
-def reduce_and_broadcast(m, op='sum', root=0):
+def reduce(m, op='sum', root=0):
     ''' Reduce a matrix onto the root process and then broadcast it
         to all other processes.
     '''
@@ -134,3 +136,31 @@ def split_int(n):
     return lst
 
 
+def get_blocks(dim, maxblk, all_ranks=False):
+    ''' Splits a dimension into equally sized nested blocks,
+        distributing blocks over each process.
+
+        i.e. dim=20, maxblk=6, size=2, all_ranks=True: 
+             [[slice(0, 6), slice(6, 10)], [slice(10, 16), slice(16, 20)]]
+
+             dim=20, maxblk=6, size=2, rank=0, all_ranks=False:
+             [slice(0, 6), slice(6, 10)]
+    '''
+
+    out = []
+
+    blks = split_int(dim)
+
+    ranks = [rank,] if not all_ranks else range(size)
+
+    for r in ranks:
+        start = sum(blks[:r])
+        stop = min(sum(blks[:r+1]), dim)
+
+        out.append([slice(start+i*maxblk, min(start+(i+1)*maxblk, stop))
+                    for i in range(blks[r] // maxblk + 1)])
+
+    if not all_ranks:
+        out = out[0]
+
+    return out
