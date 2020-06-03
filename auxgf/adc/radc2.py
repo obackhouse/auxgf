@@ -20,6 +20,10 @@ def _set_options(**kwargs):
                 'os_factor' : 1.0,
     }
 
+    for key,val in kwargs.items():
+        if key not in options.keys():
+            raise ValueError('%s argument invalid.' % key)
+
     options.update(kwargs)
 
     options['_build'] = {
