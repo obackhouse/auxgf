@@ -521,6 +521,7 @@ class Aux:
 
 
     def merge(self, etol=1e-10, wtol=1e-12):
+        raise NotImplementedError #FIXME
         ''' Performs an in-principle exact reduction of the auxiliaries
             which have linear dependencies or negligible weight.
 
@@ -655,7 +656,8 @@ class Aux:
         return red
 
 
-    def fit(self, target, grid, hessian=True, opts={}, test_grad=False, test_hess=False):
+    def fit(self, target, grid, **kwargs): # pragma: no cover
+        raise NotImplementedError #FIXME
         ''' Runs the auxiliary fitting procedure. 
 
         Parameters
@@ -754,10 +756,12 @@ class Aux:
             size in GB
         '''
 
-        bits = 64 * self.naux * (self.nphys + 1)
-        size = types.float64(bits) / 1e9
+        b = self.e.nbytes + self.v.nbytes + 8
+        gb = b / 1e9
 
-        return size
+        return gb
+
+    __sizeof__ = memsize
 
 
     def new(self, e, v, chempot=None):
@@ -908,4 +912,3 @@ class Aux:
     @property
     def nvir(self):
         return self.v_vir.shape[1]
-
