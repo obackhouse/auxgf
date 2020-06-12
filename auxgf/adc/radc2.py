@@ -159,10 +159,10 @@ class RADC2:
         eo = self.hf.e[occ]
         ev = self.hf.e[vir]
 
-        e, v = aux.build_rmp2_part(eo, ev, eri_ooov, 
+        e, v = aux.build_rmp2_part(eo, ev, eri_ooov,
                                    **self.options['_build'])
 
-        self.se = aux.Aux(e, v, chempot=self.hf.chempot)
+        self.se = aux.Aux(e, v)#, chempot=self.hf.chempot)
 
 
     @util.record_time('diagonalise')
@@ -245,13 +245,13 @@ class RADC2:
     def ip(self):
         if self.method != 'ip':
             raise ValueError
-        return self.e_excite, self.v_excite
+        return self.e_excite[0], self.v_excite[0]
 
     @property
     def ea(self):
         if self.method != 'ea':
             raise ValueError
-        return self.e_excite, self.v_excite
+        return self.e_excite[0], self.v_excite[0]
 
     @property
     def verbose(self):
