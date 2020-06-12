@@ -116,7 +116,11 @@ class UHF(hf.HF):
         _hf = UHF(mol.Molecule.from_pyscf(hf.mol))
 
         _hf._pyscf = hf
-        _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
+
+        if not getattr(hf, 'with_df', False):
+            _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
+        else:
+            _hf._eri_ao = lib.unpack_tril(hf.with_df._cderi)
         
         return _hf
 

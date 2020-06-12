@@ -10,6 +10,7 @@ from auxgf.util import log
 from auxgf.mol import mol
 from auxgf.hf import hf
 
+
 class RHF(hf.HF):
     ''' Restricted Hartree-Fock class.
 
@@ -113,7 +114,11 @@ class RHF(hf.HF):
         _hf = RHF(mol.Molecule.from_pyscf(hf.mol))
 
         _hf._pyscf = hf
-        _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
+
+        if not getattr(hf, 'with_df', False):
+            _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
+        else:
+            _hf._eri_ao = lib.unpack_tril(hf.with_df._cderi)
         
         return _hf
 

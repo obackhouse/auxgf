@@ -3,6 +3,7 @@
 
 from pyscf import gto
 
+
 class Molecule:
     ''' Molecule class.
 
@@ -57,11 +58,13 @@ class Molecule:
     def __init__(self, atoms, **kwargs):
         self._pyscf = gto.M(atom=atoms, verbose=0, **kwargs)
 
+
     def intor(self, *args, **kwargs):
         ''' Interface to mol.intor from pyscf.
         '''
 
         return self._pyscf.intor(*args, **kwargs)
+
 
     @property
     def ncore(self):
@@ -133,6 +136,7 @@ class Molecule:
     def basis(self):
         return self._pyscf.basis
 
+
     @classmethod
     def from_pyscf(cls, mol):
         ''' Builds the Molecule object from a pyscf.gto.Mole object.
@@ -152,4 +156,3 @@ class Molecule:
         _mol._pyscf = mol
 
         return _mol
-
