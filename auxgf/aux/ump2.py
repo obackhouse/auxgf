@@ -8,6 +8,9 @@ from auxgf import util, aux
 from auxgf.util import types
 
 
+_is_tuple = lambda x : isinstance(x, (tuple, list, np.ndarray))
+
+
 def _parse_uhf(e, eri, chempot):
     if not (np.all(np.diff(e[0]) >= 0) and np.all(np.diff(e[1])) >= 0):
         # See auxgf.aux.build.rmp2._parse_rhf
@@ -223,7 +226,7 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
         auxiliaries
     '''
 
-    if not isinstance(chempot, tuple):
+    if not _is_tuple(chempot):
         chempot = (chempot, chempot)
 
     assert np.asarray(e).ndim == 2
@@ -302,7 +305,7 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
                                      ss_factor=ss_factor, os_factor=os_factor)
     del xija
 
-    xija_bbbb = util.mo2qo(eri_mo[0,0], co[1], co[1], cv[1])
+    xija_bbbb = util.mo2qo(eri_mo[1,1], co[1], co[1], cv[1])
     xija_bbaa = util.mo2qo(eri_mo[1,0], co[1], co[0], cv[0])
     xija = (xija_bbbb, xija_bbaa)
     eija_b, vija_b = build_ump2_part(eo[::-1], ev[::-1], xija, wtol=wtol,
@@ -316,7 +319,7 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
                                      ss_factor=ss_factor, os_factor=os_factor)
     del xabi
 
-    xabi_bbbb = util.mo2qo(eri_mo[0,0], cv[1], cv[1], co[1])
+    xabi_bbbb = util.mo2qo(eri_mo[1,1], cv[1], cv[1], co[1])
     xabi_bbaa = util.mo2qo(eri_mo[1,0], cv[1], cv[0], co[0])
     xabi = (xabi_bbbb, xabi_bbaa)
     eabi_b, vabi_b = build_ump2_part(ev[::-1], eo[::-1], xabi, wtol=wtol,
@@ -369,36 +372,29 @@ def build_ump2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
     npoles  = nvira * nocca * (nocca-1) // 2
     npoles += nvirb * nocca * noccb
 
-    e = np.zeros((npoles), dtype=types.float64)
-    v = np.zeros((nphys, npoles), dtype=types.float64)
-
     a_factor = np.sqrt(ss_factor)
     b_factor = np.sqrt(os_factor)
 
-    n0 = 0
     for i in range(nocca):
         nja_a = i * nvira
         nja_b = noccb * nvirb
         jm = slice(None, i)
-        am = slice(n0, n0+nja_a)
-        bm = slice(n0+nja_a, n0+nja_a+nja_b)
 
         vija_aaa = xija[0][:,i,jm].reshape((nphys, -1))
         vjia_aaa = xija[0][:,jm,i].reshape((nphys, -1))
         vija_abb = xija[1][:,i].reshape((nphys, -1))
 
-        e[am] = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
-        e[bm] = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
+        ea = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
+        eb = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
 
         # FIXME: is this line correct? originally I did not have the brackets here
-        v[:,am] = a_factor * (vija_aaa - vjia_aaa)
-        v[:,bm] = b_factor * vija_abb
+        va = a_factor * (vija_aaa - vjia_aaa)
+        vb = b_factor * vija_abb
 
-        n1 = n0 + nja_a + nja_b
-
-        yield e[n0:n1], v[:,n0:n1]
-
-        n0 = n1
+        if len(ea):
+            yield ea, va
+        if len(eb):
+            yield eb, vb
 
 
 def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
@@ -430,11 +426,11 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
         auxiliaries for beta spin
     '''
 
-    if not isinstance(chempot, tuple):
+    if not _is_tuple(chempot):
         chempot = (chempot, chempot)
 
-    assert isinstance(e, tuple) and len(e) == 2
-    assert isinstance(eri, tuple) and len(eri) == 2
+    assert _is_tuple(e) and len(e) == 2
+    assert _is_tuple(eri) and len(eri) == 2
     
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
@@ -475,7 +471,7 @@ def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman
         frequency-dependent self-energy
     '''
 
-    if not isinstance(chempot, tuple):
+    if not _is_tuple(chempot):
         chempot = (chempot, chempot)
 
     #TODO write in C
@@ -542,7 +538,7 @@ def build_ump2_se_direct(e, eri, grid, chempot=0.0, ordering='feynman'):
         frequency-dependent self-energy
     '''
 
-    if not isinstance(chempot, tuple):
+    if not _is_tuple(chempot):
         chempot = (chempot, chempot)
 
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
@@ -551,7 +547,3 @@ def build_ump2_se_direct(e, eri, grid, chempot=0.0, ordering='feynman'):
     se += build_ump2_part_se_direct(ev, eo, xabi, grid, chempot=chempot)
 
     return se
-
-
-
-
