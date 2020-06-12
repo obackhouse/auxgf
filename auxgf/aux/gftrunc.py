@@ -183,6 +183,9 @@ def run(aux, h_phys, nmom, method='power', beta=100, chempot=0.0):
 
     #TODO: debugging mode which checks the moments
 
+    if method == 'legendre': #FIXME?
+        raise NotImplementedError
+
     p = build_projector(aux, h_phys, nmom, method=method, 
                         beta=beta, chempot=chempot)
 
