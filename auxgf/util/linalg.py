@@ -110,7 +110,7 @@ def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
     # used where it has been tested against np.dot specifically for 
     # that use case!
 
-    if not _is_contiguous(a) or not _is_contiguous(b):
+    if (not _is_contiguous(a)) or (not _is_contiguous(b)):
         log.warn('DGEMM called on non-contiguous data')
 
     m, k = a.shape
@@ -136,7 +136,7 @@ def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
     return c
 
 
-def qr_unsafe(a):
+def qr_unsafe(a): # pragma: no cover
     ''' Performs a QR decomposition of an array. This is faster than
         `numpy.linalg.qr` for C-contiguous arrays.
 
@@ -192,7 +192,7 @@ def cholesky_qr(a):
         r = np.linalg.cholesky(x).T
         q = np.dot(a, np.linalg.inv(r))
 
-    except np.linalg.LinAlgError:
+    except np.linalg.LinAlgError: # pragma: no cover
         if mpi.rank:
             log.warn('Matrix not positive definite in Cholesky step of '
                      'util.linalg.qholesky_qr - falling back to numpy.')
@@ -305,7 +305,7 @@ def spin_block(array_a, array_b):
     return array
 
 
-def lanczos(array, v0=None, niter=100):
+def lanczos(array, v0=None, niter=100): # pragma: no cover
     ''' Lanczos tridiagonalisation of a real symmetric input matrix.
 
     Parameters
@@ -550,7 +550,7 @@ def batch_eigh(arrays):
     return ws, vs
 
 
-def dirsum(key, *arrays):
+def dirsum(key, *arrays): # pragma: no cover
     return pyscf_dirsum(key, *arrays)
 
     raise NotImplementedError #FIXME fails i,a,j,b->iajb
@@ -681,24 +681,3 @@ def density(array, tol=1e-14):
     '''
 
     return 1.0 - sparsity(array, tol=tol)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
