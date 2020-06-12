@@ -50,7 +50,7 @@ class KnownValues(unittest.TestCase):
 
     def test_array(self):
         sys.stdout = stdout = StringIO()
-        log.array(np.zeros((3, 3)), verbose=2)
+        log.array(np.zeros((3, 3)), 'test', verbose=2)
         sys.stdout = sys.__stdout__
 
 
