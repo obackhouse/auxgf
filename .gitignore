@@ -6,3 +6,6 @@ run.py
 *.prof
 data/
 *.sh
+_annotated
+.coverage
+*,cover
