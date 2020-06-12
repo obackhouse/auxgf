@@ -1,0 +1,21 @@
+[run]
+branch = True
+include = */auxgf/*
+omit = */auxgf/future/*
+       */scripts/*
+       */examples/*
+       */tests/*
+
+[report]
+exclude_lines = 
+    raise NotImplementedError
+    if 0:
+    if __name__ == '__main__'
+    except ImportError:
+    pass
+    pragma: no cover
+
+ignore_errors = True
+
+[html]
+directory = coveage_html_report
