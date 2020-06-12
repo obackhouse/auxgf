@@ -38,5 +38,3 @@ class ADC3(ADC2):
     def __init__(self, hf, **kwargs):
         super().__init__(hf, **kwargs)
         self._pyscf.method = 'adc(3)'
-
-

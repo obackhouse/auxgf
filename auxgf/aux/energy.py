@@ -111,30 +111,3 @@ def energy_mp2_aux(mo, se, both_sides=False):
         e2b *= 0.5
 
     return np.ravel(e2b)[0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

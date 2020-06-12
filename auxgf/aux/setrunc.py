@@ -335,6 +335,3 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
     red = red_occ + red_vir
 
     return red
-
-
-

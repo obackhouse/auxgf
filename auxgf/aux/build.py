@@ -102,18 +102,3 @@ def build_mp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     else:
         return build_ump2_iter(aux, h_phys, eri_mo, wtol=wtol,
                                ss_factor=ss_factor, os_factor=os_factor)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

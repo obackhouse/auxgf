@@ -105,4 +105,3 @@ def array(arr, title, verbose=1):
             s += line + '\n'
 
             write(s)
-

@@ -8,6 +8,7 @@ from pyscf.scf.stability import rhf_stability, uhf_stability
 from auxgf import util
 from auxgf.util import log, types, mpi
 
+
 class HF:
     ''' Base class for Hartree-Fock SCF.
 
@@ -244,8 +245,3 @@ class HF:
     def get_eri_mo(self, masks):
         coeffs = [self.c[:,mask] for mask in masks]
         return util.ao2mo(self.eri_ao, *coeffs)
-
-
-
-
-

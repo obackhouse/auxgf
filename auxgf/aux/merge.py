@@ -78,5 +78,3 @@ def aux_merge_exact(aux, etol=1e-10, wtol=1e-12):
     red = aux.new(e, v)
 
     return red
-
-

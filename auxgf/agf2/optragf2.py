@@ -633,9 +633,3 @@ class OptRAGF2:
     @property
     def nmom(self):
         return (None, 0)
-
-
-        
-
-
-        

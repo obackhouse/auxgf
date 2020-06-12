@@ -310,5 +310,6 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
     return se, rdm, converged
     
-        
 
+if __name__ == '__main__':
+    pass
