@@ -68,6 +68,26 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.absolute(ragf2.get_fock() - self.rhf.fock_mo)), 0, 8)
         self.assertAlmostEqual(np.max(np.absolute(ragf2.get_fock(self.rhf.rdm1_mo) - self.rhf.fock_mo)), 0, 8)
 
+    def test_ip(self):
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False)
+        ragf2.run()
+        w, v = ragf2.se.eig(ragf2.get_fock())
+        arg = np.argmax(w[w < ragf2.chempot])
+        e1, v1 = -w[w < ragf2.chempot][arg], v[:,w < ragf2.chempot][:,arg][:ragf2.nphys]
+        e2, v2 = ragf2.ip
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+
+    def test_ea(self):
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False)
+        ragf2.run()
+        w, v = ragf2.se.eig(ragf2.get_fock())
+        arg = np.argmin(w[w >= ragf2.chempot])
+        e1, v1 = w[w >= ragf2.chempot][arg], v[:,w >= ragf2.chempot][:,arg][:ragf2.nphys]
+        e2, v2 = ragf2.ea
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+
 
 if __name__ == '__main__':
     unittest.main()

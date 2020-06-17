@@ -18,6 +18,8 @@ class AuxMethod:
             setup
             run
             get_fock
+            ip (property)
+            ea (property)
 
         The following options are always set, with default values:
 
@@ -110,6 +112,46 @@ class AuxMethod:
         fock = self.hf.get_fock(rdm1, basis='mo')
 
         return fock
+
+
+    @property
+    def ip(self):
+        e, v = np.inf, None
+
+        if isinstance(self.gf, (list, tuple)):
+            for gf in self.gf:
+                gf_occ = gf.as_occupied()
+                arg = np.argmax(gf_occ.e)
+
+                if abs(self.chempot[0] - gf_occ.e[arg]) < e:
+                    e, v = gf_occ.e[arg], gf_occ.v[:,arg]
+
+        else:
+            gf_occ = self.gf.as_occupied()
+            arg = np.argmax(gf_occ.e)
+            e, v = gf_occ.e[arg], gf_occ.v[:,arg]
+
+        return -e, v
+
+
+    @property
+    def ea(self):
+        e, v = np.inf, None
+
+        if isinstance(self.gf, (list, tuple)):
+            for gf in self.gf:
+                gf_vir = gf.as_virtual()
+                arg = np.argmin(gf_vir.e)
+
+                if abs(gf_vir.e[arg] - self.chempot[1]) < e:
+                    e, v = gf_vir.e[arg], gf_vir.v[:,arg]
+
+        else:
+            gf_vir = self.gf.as_virtual()
+            arg = np.argmin(gf_vir.e)
+            e, v = gf_vir.e[arg], gf_vir.v[:,arg]
+
+        return e, v
 
 
     def run(self):

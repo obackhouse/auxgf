@@ -74,6 +74,36 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.absolute(uagf2.get_fock() - self.uhf.fock_mo)), 0, 8)
         self.assertAlmostEqual(np.max(np.absolute(uagf2.get_fock(self.uhf.rdm1_mo) - self.uhf.fock_mo)), 0, 8)
 
+    def test_ip(self):
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False)
+        uagf2.run()
+        wa, va = uagf2.se[0].eig(uagf2.get_fock()[0])
+        wb, vb = uagf2.se[1].eig(uagf2.get_fock()[1])
+        arga = np.argmax(wa[wa < uagf2.chempot[0]])
+        argb = np.argmax(wb[wb < uagf2.chempot[1]])
+        if wa[wa < uagf2.chempot[0]][arga] > wb[wb < uagf2.chempot[1]][argb]:
+            e1, v1 = -wa[wa < uagf2.chempot[0]][arga], va[:,wa < uagf2.chempot[0]][:,arga][:uagf2.nphys]
+        else:
+            e1, v1 = -wb[wb < uagf2.chempot[1]][argb], vb[:,wb < uagf2.chempot[1]][:,argb][:uagf2.nphys]
+        e2, v2 = uagf2.ip
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+
+    def test_ea(self):
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False)
+        uagf2.run()
+        wa, va = uagf2.se[0].eig(uagf2.get_fock()[0])
+        wb, vb = uagf2.se[1].eig(uagf2.get_fock()[1])
+        arga = np.argmin(wa[wa >= uagf2.chempot[0]])
+        argb = np.argmin(wb[wb >= uagf2.chempot[1]])
+        if wa[wa >= uagf2.chempot[0]][arga] > wb[wb >= uagf2.chempot[1]][argb]:
+            e1, v1 = wa[wa >= uagf2.chempot[0]][arga], va[:,wa >= uagf2.chempot[0]][:,arga][:uagf2.nphys]
+        else:
+            e1, v1 = wb[wb >= uagf2.chempot[1]][argb], vb[:,wb >= uagf2.chempot[1]][:,argb][:uagf2.nphys]
+        e2, v2 = uagf2.ea
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+
 
 if __name__ == '__main__':
     unittest.main()

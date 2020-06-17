@@ -437,6 +437,9 @@ class OptRAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
+        e_qmo, v_qmo = self.se.eig(self.get_fock())
+        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
+
         e2b = 0.0
 
         for l in range(mpi.rank, self.gf.nocc, mpi.size):

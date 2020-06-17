@@ -42,6 +42,36 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(ragf2.e_tot, opt_ragf2.e_tot, 3)
         self.assertAlmostEqual(ragf2.chempot, opt_ragf2.chempot, 4)
 
+    def test_ip(self):
+        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False)
+        opt_ragf2.run()
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False)
+        ragf2.run()
+        w, v = opt_ragf2.se.eig(opt_ragf2.get_fock())
+        arg = np.argmax(w[w < opt_ragf2.chempot])
+        e1, v1 = -w[w < opt_ragf2.chempot][arg], v[:,w < opt_ragf2.chempot][:,arg][:opt_ragf2.nphys]
+        e2, v2 = opt_ragf2.ip
+        e3, v3 = ragf2.ip
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(e2, e3, 4)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+        self.assertAlmostEqual(np.linalg.norm(v2), np.linalg.norm(v3), 4)
+
+    def test_ea(self):
+        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False)
+        opt_ragf2.run()
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False)
+        ragf2.run()
+        w, v = opt_ragf2.se.eig(opt_ragf2.get_fock())
+        arg = np.argmin(w[w >= opt_ragf2.chempot])
+        e1, v1 = w[w >= opt_ragf2.chempot][arg], v[:,w >= opt_ragf2.chempot][:,arg][:opt_ragf2.nphys]
+        e2, v2 = opt_ragf2.ea
+        e3, v3 = ragf2.ea
+        self.assertAlmostEqual(e1, e2, 8)
+        self.assertAlmostEqual(e2, e3, 4)
+        self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
+        self.assertAlmostEqual(np.linalg.norm(v2), np.linalg.norm(v3), 4)
+
 
 if __name__ == '__main__':
     unittest.main()
