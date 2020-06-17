@@ -7,7 +7,7 @@ import pickle
 
 from auxgf import util, grids
 from auxgf.util import types
-from auxgf.aux import merge, setrunc, gftrunc, fit
+from auxgf.aux import merge, setrunc, gftrunc, fit, eig
 
 
 class Aux:
@@ -459,11 +459,8 @@ class Aux:
         return out.reshape(input_shape)
 
 
-    def eig(self, h_phys, chempot=0.0):
+    def eig(self, h_phys, chempot=0.0, nroots=-1, which='SM', tol=1e-14, maxiter=None, ntrial=None):
         ''' Diagonalises `self.as_hamiltonian(h_phys)`.
-
-            Note: using `dot` and `scipy.sparse.linalg.eigsh` may
-                  well scale better, but is much much slower.
 
         Parameters
         ----------
@@ -471,6 +468,8 @@ class Aux:
             physical Hamiltonian
         chempot : float, optional
             chemical potential on the auxiliary space
+        nroots : int, optional
+            number of eigenvalues required, default -1 (returns all)
 
         Returns
         -------
@@ -489,10 +488,9 @@ class Aux:
         if h_phys.shape != (self.nphys, self.nphys):
             raise ValueError('physical space of h_phys and couplings '
                              'must match.')
-    
-        h_ext = self.as_hamiltonian(h_phys, chempot=chempot)
 
-        w, v = np.linalg.eigh(h_ext)
+        w, v = eig.eigh(self, h_phys, chempot=chempot, nroots=nroots, 
+                        which=which, tol=tol, maxiter=maxiter, ntrial=ntrial)
 
         return w, v
 
