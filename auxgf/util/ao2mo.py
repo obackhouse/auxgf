@@ -4,6 +4,8 @@
 import numpy as np
 from pyscf import lib as _pyscf_lib
 from pyscf import ao2mo as _pyscf_ao2mo
+import ctypes
+import functools
 
 from auxgf.util import einsum, types
 
@@ -40,8 +42,8 @@ def ao2mo_4d(array, c_a, c_b, c_c, c_d):
         flag in auxgf.util.linalg because pyscf.lib.einsum is quicker
         here.
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     array : (p,q,r,s) array
         array to be transformed
     c_a : (p,i) array
@@ -62,6 +64,48 @@ def ao2mo_4d(array, c_a, c_b, c_c, c_d):
     trans = _pyscf_lib.einsum('pqrs,pi,qj,rk,sl->ijkl', array, c_a, c_b, c_c, c_d)
 
     return trans
+
+
+_fdrv = functools.partial(_pyscf_ao2mo._ao2mo.libao2mo.AO2MOnr_e2_drv, 
+                          _pyscf_ao2mo._ao2mo.libao2mo.AO2MOtranse2_nr_s2,
+                          _pyscf_ao2mo._ao2mo.libao2mo.AO2MOmmm_bra_nr_s2)
+
+_nr_e2 = _pyscf_ao2mo._ao2mo.nr_e2
+
+to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
+
+def ao2mo_df(array, c_a, c_b, out=None):
+    ''' Transforms the basis of a density fitted Cholesky ERI tensor.
+
+    Parameters
+    ----------
+    array : (t,p,q) array
+        array to be transformed
+    c_a : (p,i) array
+        vectors to transform the first dimension of `array`
+    c_b : (q,j) array
+        vectors to transform the second dimension of `array`
+
+    Returns
+    -------
+    trans : (t,i,j) ndarray
+        transformed array
+    '''
+
+    naux = array.shape[0]
+    ijsym, nij, cij, sij = conc_mos(c_a, c_b, compact=True)
+    i, j = c_a.shape[1], c_b.shape[1]
+
+    if out is None:
+        out = np.zeros((naux, i*j), dtype=types.float64)
+
+    array = array.reshape((naux, -1))
+
+    out = _nr_e2(array, cij, sij, out=out, aosym='s1', mosym='s1')
+
+    out = out.reshape((naux, i, j))
+
+    return out
 
 
 def ao2mo(*args):
@@ -100,13 +144,39 @@ def ao2mo(*args):
         return np.stack(m)
 
     # spin 2d matrix with spin coefficients: (3, 3, 3)
-    if ndim == (3, 3, 3):
+    if ndim == (3, 3, 3) and args[0].shape[0] == 2:
         s, ci, cj = args
 
         assert s.shape[0] == ci.shape[0] == cj.shape[0]
         nspin = s.shape[0]
 
         m = [ao2mo_2d(s[i], ci[i], cj[i]) for i in range(nspin)]
+        return np.stack(m)
+
+    # spin-free 3d tensor with spin-free coefficients: (3, 2, 2)
+    if ndim == (3, 2, 2):
+        s, ci, cj = args
+        return ao2mo_df(s, ci, cj)
+
+    # spin-free 3d tensor with spin coefficients: (3, 3, 3)
+    if ndim == (3, 3, 3):
+        s, ci, cj = args
+
+        assert ci.shape[0] == cj.shape[0]
+        nspin = ci.shape[0]
+
+        m = [ao2mo_df(s, ci[i], cj[i]) for i in range(nspin)]
+        return np.stack(m)
+
+    # spin 3d tensor with spin coefficients: (4, 3, 3)
+    if ndim == (4, 3, 3):
+        s, ci, cj = args
+        print(s.shape, ci.shape, cj.shape)
+
+        assert s.shape[0] == ci.shape[0] == cj.shape[0]
+        nspin = s.shape[0]
+
+        m = [ao2mo_df(s[i], ci[i], cj[i]) for i in range(nspin)]
         return np.stack(m)
 
     # spin-free 4d tensor with spin-free coefficients: (4, 2, 2, 2)

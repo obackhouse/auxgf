@@ -7,3 +7,4 @@ from .ao2mo import *
 from .diis import *
 from .chempot import *
 from .geom import *
+from .method import *

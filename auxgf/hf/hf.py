@@ -239,8 +239,7 @@ class HF:
         if not self.with_df:
             return util.ao2mo(self.eri_ao, self.c, self.c, self.c, self.c)
         else:
-            c = self.c
-            return util.einsum('Qpq,...pi,...qj->...Qij', self.eri_ao, c, c)
+            return util.ao2mo(self.eri_ao, self.c, self.c)
 
     def get_eri_mo(self, masks):
         coeffs = [self.c[:,mask] for mask in masks]
