@@ -22,6 +22,7 @@ Features
 
 * Object-oriented implementation of an auxiliary space
 * Auxiliary second-order Green's function perturbation theory for restricted (RAGF2) and unrestricted (UAGF2) references
+* Auxiliary second-order Møller-Plesset perbturbation theory for restricted (RAMP2) and unrestricted (UAMP2) references
 * Optimised MPI Parallel, density-fitted RAGF2(None,0) calculations (OptRAGF2)
 * Spin-component-scaled SCS-RAGF2 and SCS-UAGF2 calculations, along with SCS-MP2 via zeroth iteration
 * Second-order algebraic diagrammatic construction for restricted (RADC2) references
