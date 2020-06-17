@@ -10,6 +10,8 @@ import scipy.sparse.linalg as sl
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
 
+#TODO: subclass? Fock and GF defined?
+
 
 def _set_options(**kwargs):
     options = { 'method' : 'ip', 

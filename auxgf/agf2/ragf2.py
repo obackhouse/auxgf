@@ -10,27 +10,24 @@ from auxgf.util import types, log, mpi
 from auxgf.agf2.fock import fock_loop_rhf
 
 
-def _set_options(**kwargs):
-    options = { 'nmom' : (3,4),
-                'dm0' : None,
-                'frozen' : 0,
-                'verbose' : True,
-                'maxiter' : 50,
-                'etol' : 1e-6,
-                'wtol' : 1e-12,
-                'damping' : 0.0,
-                'delay_damping' : 0,
-                'dtol' : 1e-8,
-                'diis_space' : 8,
-                'fock_maxiter' : 50,
-                'fock_maxruns' : 20,
-                'ss_factor' : 1.0,
-                'os_factor' : 1.0,
-                'use_merge' : False,
-                'bath_type' : 'power',
-                'bath_beta' : 100,
-                'qr' : 'cholesky',
-    }
+def _set_options(options, **kwargs):
+    options.update({ 'nmom' : (3,4),
+                     'maxiter' : 50,
+                     'etol' : 1e-6,
+                     'wtol' : 1e-12,
+                     'damping' : 0.0,
+                     'delay_damping' : 0,
+                     'dtol' : 1e-8,
+                     'diis_space' : 8,
+                     'fock_maxiter' : 50,
+                     'fock_maxruns' : 20,
+                     'ss_factor' : 1.0,
+                     'os_factor' : 1.0,
+                     'use_merge' : False,
+                     'bath_type' : 'power',
+                     'bath_beta' : 100,
+                     'qr' : 'cholesky',
+    })
 
     for key,val in kwargs.items():
         if key not in options.keys():
@@ -53,11 +50,6 @@ def _set_options(**kwargs):
         'os_factor' : options['os_factor'],
     }
 
-    if not isinstance(options['frozen'], tuple):
-        options['frozen'] = (options['frozen'], 0)
-
-    options['verbose'] = options['verbose'] and not mpi.rank
-
     return options
 
 
@@ -75,7 +67,7 @@ def _active(ragf2, arr):
     return arr[act]
 
 
-class RAGF2:
+class RAGF2(util.AuxMethod):
     ''' Restricted auxiliary GF2 method.
 
     Parameters
@@ -176,32 +168,16 @@ class RAGF2:
     '''
 
     def __init__(self, rhf, **kwargs):
-        self.hf = rhf
-        self.options = _set_options(**kwargs)
-        self._timer = util.Timer()
+        super().__init__(rhf, **kwargs)
+
+        self.options = _set_options(self.options, **kwargs)
 
         self.setup()
 
 
     @util.record_time('setup')
     def setup(self):
-        self.h1e = self.hf.h1e_mo
-        self.eri = self.hf.eri_mo
-
-        if self.options['dm0'] is None:
-            self.rdm1 = self.hf.rdm1_mo
-        else:
-            self.rdm1 = np.array(self.options['dm0'], dtype=types.float64)
-
-        self.converged = False
-        self.iteration = 0
-
-        nact = self.hf.nao - sum(self.options['frozen'])
-        self.se = aux.Aux([], [[],]*nact, chempot=self.hf.chempot)
-        self._se_prev = None
-
-        self._timings = {}
-        self._energies = {}
+        super().setup()
 
         log.title('Options', self.verbose)
         log.options(self.options, self.verbose)
@@ -253,7 +229,9 @@ class RAGF2:
                       self.verbose)
 
         fock_act = _active(self, self.get_fock(rdm1=rdm1))
-        e_qmo = util.eigvalsh(se.as_hamiltonian(fock_act))
+
+        e_qmo, v_qmo = util.eigh(se.as_hamiltonian(fock_act))
+        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
 
         self.se = se
         self.rdm1 = rdm1
@@ -303,19 +281,6 @@ class RAGF2:
         self.merge()
 
 
-    def get_fock(self, rdm1=None):
-        ''' Returns the Fock matrix resulting from the current, or
-            provided, density.
-        '''
-
-        if rdm1 is None:
-            rdm1 = self.rdm1
-
-        fock = self.hf.get_fock(rdm1, basis='mo')
-
-        return fock
-
-
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
@@ -339,9 +304,10 @@ class RAGF2:
     @util.record_energy('2b')
     def energy_2body(self):
         fock_act = _active(self, self.get_fock())
-        gf = aux.Aux(*self.se.eig(fock_act), chempot=self.chempot)
+        e_qmo, v_qmo = self.se.eig(fock_act)
+        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
 
-        e2b = aux.energy.energy_2body_aux(gf, self.se)
+        e2b = aux.energy.energy_2body_aux(self.gf, self.se)
 
         log.write('E(2b)  = %.12f\n' % e2b, self.verbose)
 
@@ -393,7 +359,7 @@ class RAGF2:
             log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
                       self.iteration, self.verbose)
         else:
-            log.write('\nAuxiliary GF2 failed to converged.\n', self.verbose)
+            log.write('\nAuxiliary GF2 failed to converge.\n', self.verbose)
 
         self._timings['total'] = self._timings.get('total', 0.0) \
                                  + self._timer.total()
@@ -402,41 +368,6 @@ class RAGF2:
 
         return self
 
-
-    @property
-    def nalph(self):
-        return self.hf.nalph
-
-    @property
-    def nbeta(self):
-        return self.hf.nbeta
-
-    @property
-    def nelec(self):
-        return self.hf.nelec
-
-    @property
-    def nphys(self):
-        return self.se.nphys
-
-    @property
-    def naux(self):
-        return self.se.naux
-
-    @property
-    def chempot(self):
-        return self.se.chempot
-
-    @property
-    def e_hf(self):
-        return self.hf.e_tot
-
-    @property
-    def e_1body(self):
-        if self.iteration:
-            return self._energies['1b'][-1]
-        else:
-            return self.e_hf
 
     @property
     def e_2body(self):
@@ -456,17 +387,6 @@ class RAGF2:
     def e_mp2(self):
         return self._energies['mp2'][-1]
 
-    @property
-    def e_corr(self):
-        return self.e_tot - self.e_hf
-
-    @property
-    def verbose(self):
-        return self.options['verbose']
-
-    @verbose.setter
-    def verbose(self, val):
-        self.options['verbose'] = val
 
     @property
     def nmom(self):
@@ -475,5 +395,3 @@ class RAGF2:
     @nmom.setter
     def nmom(self, val):
         self.options['nmom'] = val
-
-        

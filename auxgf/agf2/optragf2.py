@@ -12,36 +12,33 @@ import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
+from auxgf.agf2 import chempot
 
 
 #TODO: save/load, damping, scs
 #FIXME: should we screen auxiliaries? is it worth it?
 
 
-def _set_options(**kwargs):
-    options = { 'dm0' : None,
-                'verbose' : True,
-                'maxiter' : 50,
-                'etol' : 1e-6,
-                'wtol' : 1e-12,
-                'damping' : 0.0,
-                'delay_damping' : 0,
-                'dtol' : 1e-8,
-                'diis_space' : 8,
-                'fock_maxiter' : 50,
-                'fock_maxruns' : 20,
-                'maxblk' : 120,
-                'ss_factor' : 1.0,
-                'os_factor' : 1.0,
-    }
+def _set_options(options, **kwargs):
+    options.update({ 'maxiter' : 50,
+                     'etol' : 1e-6,
+                     'wtol' : 1e-12,
+                     'damping' : 0.0,
+                     'delay_damping' : 0,
+                     'dtol' : 1e-8,
+                     'diis_space' : 8,
+                     'fock_maxiter' : 50,
+                     'fock_maxruns' : 20,
+                     'maxblk' : 120,
+                     'ss_factor' : 1.0,
+                     'os_factor' : 1.0,
+    })
 
     for key,val in kwargs.items():
         if key not in options.keys():
             raise ValueError('%s argument invalid.' % key)
 
     options.update(kwargs)
-
-    options['verbose'] = options['verbose'] and not mpi.rank
 
     return options
 
@@ -56,7 +53,7 @@ _fdrv = functools.partial(_ao2mo.libao2mo.AO2MOnr_e2_drv,
 to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
 
 
-class OptRAGF2:
+class OptRAGF2(util.AuxMethod):
     ''' Restricted auxiliary GF2 method for (None,1) and DF integrals.
 
     Parameters
@@ -141,9 +138,9 @@ class OptRAGF2:
     '''
 
     def __init__(self, rhf, **kwargs):
-        self.hf = rhf
-        self.options = _set_options(**kwargs)
-        self._timer = util.Timer()
+        super().__init__(rhf, **kwargs)
+
+        self.options = _set_options(self.options, **kwargs)
 
         if mpi.mpi is None:
             log.warn('No MPI4Py installation detected, OptRAGF2 will '
@@ -154,23 +151,11 @@ class OptRAGF2:
 
     @util.record_time('setup')
     def setup(self):
-        self.h1e = self.hf.h1e_mo
-        self.eri = self.ao2mo(self.hf._pyscf.with_df._cderi, self.hf.c, 
-                              self.hf.c, maxblk=self.options['maxblk'])
-
-        if self.options['dm0'] is None:
-            self.rdm1 = self.hf.rdm1_mo
-        else:
-            self.rdm1 = np.array(self.options['dm0'], dtype=types.float64)
-
-        self.converged = False
-        self.iteration = 0
-
-        self.se = aux.Aux([], [[],]*self.hf.nao, chempot=self.hf.chempot)
+        super().setup()
         self.gf = self.se.new(self.hf.e, np.eye(self.hf.nao))
 
-        self._timings = {}
-        self._energies = {}
+        if self.eri.ndim == 3:
+            self.eri = lib.pack_tril(self.eri)
 
         log.title('Options', self.verbose)
         log.options(self.options, self.verbose)
@@ -385,9 +370,12 @@ class OptRAGF2:
         for nrun in range(self.options['fock_maxruns']):
             w, v, self.se.chempot, error = diag_fock_ext(0)
 
-            opt = minimize(obj, method='SLSQP', x0=self.se.chempot, 
-                           options=dict(maxiter=200, ftol=dtol))
-            self.se._ener -= opt.x
+            #opt = minimize(obj, method='SLSQP', x0=self.se.chempot, 
+            #               options=dict(maxiter=200, ftol=dtol))
+            #self.se._ener -= opt.x
+
+            se, opt = chempot.minimize(self.se, fock, self.nelec, buf=buf, 
+                                       x0=self.se.chempot, tol=dtol)
 
             for niter in range(self.options['fock_maxiter']):
                 w, v, self.se.chempot, error = diag_fock_ext(0)
@@ -566,41 +554,6 @@ class OptRAGF2:
 
 
     @property
-    def nalph(self):
-        return self.hf.nalph
-
-    @property
-    def nbeta(self):
-        return self.hf.nbeta
-
-    @property
-    def nelec(self):
-        return self.hf.nelec
-
-    @property
-    def nphys(self):
-        return self.se.nphys
-
-    @property
-    def naux(self):
-        return self.se.naux
-
-    @property
-    def chempot(self):
-        return self.se.chempot
-
-    @property
-    def e_hf(self):
-        return self.hf.e_tot
-
-    @property
-    def e_1body(self):
-        if self.iteration:
-            return self._energies['1b'][-1]
-        else:
-            return self.e_hf
-
-    @property
     def e_2body(self):
         if self.iteration:
             return self._energies['2b'][-1]
@@ -618,17 +571,6 @@ class OptRAGF2:
     def e_mp2(self):
         return self._energies['mp2'][-1]
 
-    @property
-    def e_corr(self):
-        return self.e_tot - self.e_hf
-
-    @property
-    def verbose(self):
-        return self.options['verbose']
-
-    @verbose.setter
-    def verbose(self, val):
-        self.options['verbose'] = val
 
     @property
     def nmom(self):

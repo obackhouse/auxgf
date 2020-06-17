@@ -8,57 +8,10 @@ import functools
 from auxgf import util, grids, aux
 from auxgf.util import types, log
 from auxgf.agf2.fock import fock_loop_uhf
+from auxgf.agf2 import ragf2
 
 
-def _set_options(**kwargs):
-    options = { 'nmom' : (3,4),
-                'dm0' : None,
-                'frozen' : 0,
-                'verbose' : True,
-                'maxiter' : 50,
-                'etol' : 1e-6,
-                'wtol' : 1e-12,
-                'damping' : 0.0,
-                'delay_damping' : 0,
-                'dtol' : 1e-8,
-                'diis_space' : 8,
-                'fock_maxiter' : 50,
-                'fock_maxruns' : 20,
-                'ss_factor' : 1.0,
-                'os_factor' : 1.0,
-                'use_merge' : False,
-                'bath_type' : 'power',
-                'bath_beta' : 100,
-                'qr' : 'cholesky',
-    }
-
-    for key,val in kwargs.items():
-        if key not in options.keys():
-            raise ValueError('%s argument invalid.' % key)
-
-    options.update(kwargs)
-
-    options['_fock_loop'] = {
-        'dtol' : options['dtol'],
-        'diis_space' : options['diis_space'],
-        'maxiter' : options['fock_maxiter'],
-        'maxruns' : options['fock_maxruns'],
-        'frozen' : options['frozen'],
-        'verbose' : options['verbose'],
-    }
-
-    options['_build'] = {
-        'wtol' : options['wtol'],
-        'ss_factor' : options['ss_factor'],
-        'os_factor' : options['os_factor'],
-    }
-
-    if not isinstance(options['frozen'], tuple):
-        options['frozen'] = (options['frozen'], 0)
-
-    options['verbose'] = options['verbose'] and not mpi.rank
-
-    return options
+_set_options = ragf2._set_options
 
 
 def _active(uagf2, arr, ndim):
@@ -77,7 +30,7 @@ def _active(uagf2, arr, ndim):
     return arr[act]
 
 
-class UAGF2:
+class UAGF2(util.AuxMethod):
     ''' Unrestricted auxiliary GF2 method.
 
     Parameters
@@ -177,36 +130,16 @@ class UAGF2:
     '''
 
     def __init__(self, uhf, **kwargs):
-        self.hf = uhf
-        self.options = _set_options(**kwargs)
-        self._timer = util.Timer()
+        super().__init__(uhf, **kwargs)
+
+        self.options = _set_options(self.options, **kwargs)
 
         self.setup()
 
 
     @util.record_time('setup')
     def setup(self):
-        self.h1e = self.hf.h1e_mo
-        self.eri = self.hf.eri_mo
-
-        if self.options['dm0'] is None:
-            self.rdm1 = self.hf.rdm1_mo
-        else:
-            self.rdm1 = np.asarray(self.options['dm0'], dtype=types.float64)
-
-            if self.rdm1.ndim == 2:
-                self.rdm1 = np.stack([self.rdm1, self.rdm1], axis=0)
-
-        self.converged = False
-        self.iteration = 0
-
-        nact = self.hf.nao - sum(self.options['frozen'])
-        self.se = (aux.Aux([], [[],]*nact, chempot=self.hf.chempot[0]),
-                   aux.Aux([], [[],]*nact, chempot=self.hf.chempot[1]))
-        self._se_prev = (None, None)
-
-        self._timings = {}
-        self._energies = {}
+        super().setup()
 
         log.title('Options', self.verbose)
         log.options(self.options, self.verbose)
@@ -271,8 +204,10 @@ class UAGF2:
                       self.verbose)
 
         fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
-        e_qmo_a = util.eigvalsh(se[0].as_hamiltonian(fock_act[0]))
-        e_qmo_b = util.eigvalsh(se[1].as_hamiltonian(fock_act[1]))
+        e_qmo_a, v_qmo_a = util.eigh(se[0].as_hamiltonian(fock_act[0]))
+        e_qmo_b, v_qmo_b = util.eigh(se[1].as_hamiltonian(fock_act[1]))
+        self.gf = (se[0].new(e_qmo_a, v_qmo_a[:self.nphys]),
+                   se[1].new(e_qmo_b, v_qmo_b[:self.nphys]))
 
         self.se = se
         self.rdm1 = rdm1
@@ -345,19 +280,6 @@ class UAGF2:
         self.merge()
 
 
-    def get_fock(self, rdm1=None):
-        ''' Returns the Fock matrix resulting from the current, or
-            provided, density.
-        '''
-
-        if rdm1 is None:
-            rdm1 = self.rdm1
-
-        fock = self.hf.get_fock(rdm1, basis='mo')
-
-        return fock
-
-
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
@@ -386,14 +308,12 @@ class UAGF2:
     @util.record_energy('2b')
     def energy_2body(self):
         fock_act = _active(self, self.get_fock(), 2)
-        gfa = aux.Aux(*self.se[0].eig(fock_act[0]), chempot=self.chempot[0])
-        gfb = aux.Aux(*self.se[1].eig(fock_act[1]), chempot=self.chempot[0])
+        e_qmo_a, v_qmo_a = util.eigh(self.se[0].as_hamiltonian(fock_act[0]))
+        e_qmo_b, v_qmo_b = util.eigh(self.se[1].as_hamiltonian(fock_act[1]))
+        self.gf = (self.se[0].new(e_qmo_a, v_qmo_a[:self.nphys]),
+                   self.se[1].new(e_qmo_b, v_qmo_b[:self.nphys]))
 
-        e2ba = aux.energy.energy_2body_aux(gfa, self.se[0])
-        e2bb = aux.energy.energy_2body_aux(gfb, self.se[1])
-
-        e2b = e2ba + e2bb
-        e2b /= 2
+        e2b = aux.energy.energy_2body_aux(self.gf, self.se)
 
         log.write('E(2b)  = %.12f\n' % e2b, self.verbose)
 
@@ -456,41 +376,6 @@ class UAGF2:
 
 
     @property
-    def nalph(self):
-        return self.hf.nalph
-
-    @property
-    def nbeta(self):
-        return self.hf.nbeta
-
-    @property
-    def nelec(self):
-        return self.hf.nelec
-
-    @property
-    def nphys(self):
-        return self.hf.nao
-
-    @property
-    def naux(self):
-        return (self.se[0].naux, self.se[1].naux)
-
-    @property
-    def chempot(self):
-        return (self.se[0].chempot, self.se[1].chempot)
-
-    @property
-    def e_hf(self):
-        return self.hf.e_tot
-
-    @property
-    def e_1body(self):
-        if self.iteration:
-            return self._energies['1b'][-1]
-        else:
-            return self.e_hf
-
-    @property
     def e_2body(self):
         if self.iteration:
             return self._energies['2b'][-1]
@@ -508,17 +393,6 @@ class UAGF2:
     def e_mp2(self):
         return self._energies['mp2'][-1]
 
-    @property
-    def e_corr(self):
-        return self.e_tot - self.e_hf
-
-    @property
-    def verbose(self):
-        return self.options['verbose']
-
-    @verbose.setter
-    def verbose(self, val):
-        self.options['verbose'] = val
 
     @property
     def nmom(self):
@@ -527,5 +401,3 @@ class UAGF2:
     @nmom.setter
     def nmom(self, val):
         self.options['nmom'] = val
-
-
