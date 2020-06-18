@@ -16,11 +16,13 @@ from auxgf.util import types, log, mpi
 def _set_options(options, **kwargs):
     options.update({ 'method' : 'ip', 
                      'nroots' : 1,
-                     #'dm0' : None,
-                     #'verbose' : True,
+                     'nmom' : (None, None),
                      'wtol' : 1e-12,
                      'ss_factor' : 1.0,
                      'os_factor' : 1.0,
+                     'bath_type' : 'power',
+                     'bath_beta' : 100,
+                     'qr' : 'cholesky',
     })
 
     for key,val in kwargs.items():
@@ -39,7 +41,11 @@ def _set_options(options, **kwargs):
         'os_factor' : options['os_factor'],
     }
 
-    #options['verbose'] = options['verbose'] and not mpi.rank
+    options['_merge'] = {
+        'method' : options['bath_type'],
+        'beta' : options['bath_beta'],
+        'qr' : options['qr'],
+    }
 
     return options
 
@@ -51,10 +57,24 @@ class RADC2(util.AuxMethod):
     ----------
     hf : RHF or UHF
         Hartree-Fock object
+    nmom : tuple of int, optional
+        number of moments to which the truncation is constistent to,
+        ordered by (Green's function, self-energy), default is
+        (None, None) which means no truncation (full MP2).
+    verbose : bool, optional
+        if True, print output log, default True
     method : str, optional
         which excitation to calculate, 'ip' or 'ea', default 'ip'
     nroots : int, optional
         number of excitations to calculate, default 1
+    bath_type : str, optional
+        GF truncation kernel method {'power', 'legendre'}, default 
+        'power'
+    bath_beta : int, optional
+        inverse temperature used in GF truncation kernel, default 100
+    qr : str, optional
+        type of QR solver to use for SE truncation {'cholesky', 
+        'numpy', 'scipy', 'unsafe'}, default 'cholesky'
 
     Attributes
     ----------
@@ -167,17 +187,34 @@ class RADC2(util.AuxMethod):
 
         self.se = aux.Aux(e, v)#, chempot=self.hf.chempot)
 
+        log.write('naux (build) = %d\n' % self.naux, self.verbose)
+
+
+    @util.record_time('merge')
+    def merge(self):
+        occ, vir = self._get_slices()
+        nmom_gf, nmom_se = self.nmom
+
+        if nmom_gf is None and nmom_se is None:
+            return
+
+        fock = self.get_fock()[occ,occ]
+        self.se = self.se.compress(fock, self.nmom, **self.options['_merge'])
+
+        log.write('naux (merge) = %d\n' % self.naux, self.verbose)
+
 
     @util.record_time('diagonalise')
     def diagonalise(self):
         nocc, nvir = self._get_sizes()
 
-        matvec = lambda x : self.se.dot(self.h_1p_or_1h, x)
-        linop = sl.LinearOperator(shape=(self.nphys+self.naux,)*2, 
-                                  dtype=types.float64, matvec=matvec)
+        #matvec = lambda x : self.se.dot(self.h_1p_or_1h, x)
+        #linop = sl.LinearOperator(shape=(self.nphys+self.naux,)*2, 
+        #                          dtype=types.float64, matvec=matvec)
 
-        which = 'LA' if self.method == 'ip' else 'SA'
-        w, v = sl.eigsh(linop, k=self.options['nroots'], which=which)
+        #which = 'LA' if self.method == 'ip' else 'SA'
+        #w, v = sl.eigsh(linop, k=self.options['nroots'], which=which)
+        w, v = self.se.eig(self.h_1p_or_1h, nroots=1)
 
         self.e_excite = -w if self.method == 'ip' else w
         self.v_excite = v
@@ -186,6 +223,7 @@ class RADC2(util.AuxMethod):
     def run(self):
         self.get_1p_or_1h()
         self.build()
+        self.merge()
         self.diagonalise()
 
         log.write('E(mp2) = %.12f\n' % self.e_mp2, self.verbose)
@@ -233,3 +271,11 @@ class RADC2(util.AuxMethod):
     @method.setter
     def method(self, val):
         self.options['method'] = val
+
+    @property
+    def nmom(self):
+        return self.options['nmom']
+
+    @nmom.setter
+    def nmom(self, val):
+        self.options['nmom'] = val
