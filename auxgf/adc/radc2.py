@@ -13,14 +13,15 @@ from auxgf.util import types, log, mpi
 #TODO: subclass? Fock and GF defined?
 
 
-def _set_options(**kwargs):
-    options = { 'method' : 'ip', 
-                'nroots' : 1,
-                'verbose' : True,
-                'wtol' : 1e-12,
-                'ss_factor' : 1.0,
-                'os_factor' : 1.0,
-    }
+def _set_options(options, **kwargs):
+    options.update({ 'method' : 'ip', 
+                     'nroots' : 1,
+                     #'dm0' : None,
+                     #'verbose' : True,
+                     'wtol' : 1e-12,
+                     'ss_factor' : 1.0,
+                     'os_factor' : 1.0,
+    })
 
     for key,val in kwargs.items():
         if key not in options.keys():
@@ -28,18 +29,22 @@ def _set_options(**kwargs):
 
     options.update(kwargs)
 
+    if options['dm0'] is not None:
+        raise ValueError('dm0 argument not supported for non-iterative '
+                         'auxiliary methods.')
+
     options['_build'] = {
         'wtol' : options['wtol'],
         'ss_factor' : options['ss_factor'],
         'os_factor' : options['os_factor'],
     }
 
-    options['verbose'] = options['verbose'] and not mpi.rank
+    #options['verbose'] = options['verbose'] and not mpi.rank
 
     return options
 
 
-class RADC2:
+class RADC2(util.AuxMethod):
     ''' Class for second-order algebraic diagrammatic construction.
 
     Parameters
@@ -72,20 +77,16 @@ class RADC2:
     '''
     
     def __init__(self, rhf, **kwargs):
-        self.hf = rhf
-        self.options = _set_options(**kwargs)
-        self._timer = util.Timer()
+        super().__init__(rhf, **kwargs)
+
+        self.options = _set_options(self.options, **kwargs)
 
         self.setup()
 
     
     @util.record_time('setup')
     def setup(self):
-        self.h1e = self.hf.h1e_mo
-        self.eri = self.hf.eri_mo
-        self.rdm1 = self.hf.rdm1_mo
-
-        self._timings = {}
+        super().setup()
 
         log.title('Options', self.verbose)
         log.options(self.options, self.verbose)
@@ -200,34 +201,6 @@ class RADC2:
 
 
     @property
-    def nalph(self):
-        return self.hf.nalph
-
-    @property
-    def nbeta(self):
-        return self.hf.nbeta
-
-    @property
-    def nelec(self):
-        return self.hf.nelec
-
-    @property
-    def nphys(self):
-        return self.se.nphys
-
-    @property
-    def naux(self):
-        return self.se.naux
-
-    @property
-    def chempot(self):
-        return self.se.chempot
-
-    @property
-    def e_hf(self):
-        return self.hf.e_tot
-
-    @property
     def e_1body(self):
         return self.e_hf
 
@@ -239,9 +212,6 @@ class RADC2:
     def e_tot(self):
         return self.e_hf + self.e_mp2
 
-    @property
-    def e_corr(self):
-        return self.e_tot - self.e_hf
 
     @property
     def ip(self):
@@ -255,13 +225,6 @@ class RADC2:
             raise ValueError
         return self.e_excite[0], self.v_excite[0]
 
-    @property
-    def verbose(self):
-        return self.options['verbose']
-
-    @verbose.setter
-    def verbose(self, val):
-        self.options['verbose'] = val
 
     @property
     def method(self):
