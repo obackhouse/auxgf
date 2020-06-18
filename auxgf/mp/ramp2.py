@@ -25,6 +25,10 @@ def _set_options(options, **kwargs):
 
     options.update(kwargs)
 
+    if options['dm0'] is not None:
+        raise ValueError('dm0 argument not supported for non-iterative '
+                         'auxiliary methods.')
+
     options['_build'] = {
         'wtol' : options['wtol'],
         'ss_factor' : options['ss_factor'],
