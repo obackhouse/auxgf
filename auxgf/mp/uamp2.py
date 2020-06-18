@@ -24,9 +24,6 @@ class UAMP2(util.AuxMethod):
         number of moments to which the truncation is consistent to,
         ordered by (Green's function, self-energy), default (3,4), 
         see auxgf.aux.aux.Aux.compress
-    dm0 : (2,n,n) ndarray, optional
-        initial density matrix for alpha and beta spins, if None, 
-        use rhf.rdm1_mo, default None
     verbose : bool, optional
         if True, print output log, default True
     wtol : float, optional

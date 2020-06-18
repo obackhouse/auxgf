@@ -51,8 +51,6 @@ class RAMP2(util.AuxMethod):
         number of moments to which the truncation is constistent to,
         ordered by (Green's function, self-energy), default is
         (None, None) which means no truncation (full MP2).
-    dm0 : (n,n) ndarray, optional
-        density matrix, if None, use rhf.rdm1_mo, default None
     verbose : bool, optional
         if True, print output log, default True
     wtol : float, optional
