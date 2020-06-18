@@ -166,7 +166,7 @@ class UAGF2(util.AuxMethod):
             sea, seb = aux.build_ump2_iter(self.se, fock_act, eri_act,
                                            **self.options['_build'])
         else:
-            e_act = _active(self, self.hf.e, 1)
+            e_act = _active(self, np.asarray((self.gf[0].e, self.gf[1].e)), 1)
             sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'],
                                  chempot=self.chempot[0])
             seb = aux.build_ump2(e_act[::-1], eri_act[1][::-1], 

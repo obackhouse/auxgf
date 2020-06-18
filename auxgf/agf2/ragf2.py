@@ -203,7 +203,7 @@ class RAGF2(util.AuxMethod):
             self.se = aux.build_rmp2_iter(self.se, fock_act, eri_act,
                                           **self.options['_build'])
         else:
-            e_act = _active(self, self.hf.e)
+            e_act = _active(self, self.gf.e)
             self.se = aux.build_rmp2(e_act, eri_act, **self.options['_build'], 
                                      chempot=self.chempot)
         
