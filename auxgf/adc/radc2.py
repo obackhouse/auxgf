@@ -55,7 +55,7 @@ class RADC2(util.AuxMethod):
 
     Parameters
     ----------
-    hf : RHF or UHF
+    hf : RHF
         Hartree-Fock object
     nmom : tuple of int, optional
         number of moments to which the truncation is constistent to,
@@ -147,8 +147,10 @@ class RADC2(util.AuxMethod):
         t2 /= util.dirsum('i,a,j,b->iajb', eo, -ev, eo, -ev)
         t2a = t2 - t2.swapaxes(0,2).copy()
 
-        self.e_mp2  = util.einsum('iajb,iajb->', t2, eri_ovov) * 2
-        self.e_mp2 -= util.einsum('iajb,ibja->', t2, eri_ovov)
+        os = self.options['os_factor']
+        ss = self.options['ss_factor']
+        self.e_mp2  = util.einsum('iajb,iajb->', t2, eri_ovov) * (os + ss)
+        self.e_mp2 -= util.einsum('iajb,ibja->', t2, eri_ovov) * ss
 
         h = np.diag(eo)
 
@@ -208,12 +210,6 @@ class RADC2(util.AuxMethod):
     def diagonalise(self):
         nocc, nvir = self._get_sizes()
 
-        #matvec = lambda x : self.se.dot(self.h_1p_or_1h, x)
-        #linop = sl.LinearOperator(shape=(self.nphys+self.naux,)*2, 
-        #                          dtype=types.float64, matvec=matvec)
-
-        #which = 'LA' if self.method == 'ip' else 'SA'
-        #w, v = sl.eigsh(linop, k=self.options['nroots'], which=which)
         w, v = self.se.eig(self.h_1p_or_1h, nroots=1)
 
         self.e_excite = -w if self.method == 'ip' else w
