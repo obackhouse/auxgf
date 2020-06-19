@@ -3,3 +3,4 @@ from .adc2x import ADC2x
 from .adc3 import ADC3
 
 from .radc2 import RADC2
+from .uadc2 import UADC2
