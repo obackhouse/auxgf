@@ -56,7 +56,7 @@ def find_chempot(nphys, nelec, h, occupancy=2.0):
     lumo = homo+1
     chempot = 0.5 * (w[lumo] + w[homo])
 
-    return chempot, -error
+    return chempot, error
 
 # Legacy:
 _find_chempot = find_chempot
