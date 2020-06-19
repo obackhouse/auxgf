@@ -46,12 +46,17 @@ def find_chempot(nphys, nelec, h, occupancy=2.0):
             if sum_prv <= nelec and nelec <= sum_cur:
                 break
 
-    homo = i-1 if abs(sum_prv - nelec) < abs(sum_cur - nelec) else i
-    lumo = homo + 1
-    error = min(abs(sum_cur - nelec), abs(sum_prv - nelec))
+    if abs(sum_prv - nelec) < abs(sum_cur - nelec):
+        homo = i-1
+        error = nelec - sum_prv
+    else:
+        homo = i
+        error = nelec - sum_cur
+
+    lumo = homo+1
     chempot = 0.5 * (w[lumo] + w[homo])
 
-    return chempot, error
+    return chempot, -error
 
 # Legacy:
 _find_chempot = find_chempot
