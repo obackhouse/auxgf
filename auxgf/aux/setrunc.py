@@ -303,35 +303,55 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     #TODO: debugging mode which checks the moments
 
-    if nmom == 0:
-        m_occ, b_occ = block_lanczos_1block(aux.as_occupied(), 
-                                          h_phys, qr=qr)
-        m_vir, b_vir = block_lanczos_1block(aux.as_virtual(), 
-                                          h_phys, qr=qr)
+    red = aux.new([], [[],]*aux.nphys)
 
-        t_occ = build_block_tridiag(m_occ, b_occ)
-        t_vir = build_block_tridiag(m_vir, b_vir)
+    for part in [aux.as_occupied(), aux.as_virtual()]:
+        if part.naux == 0:
+            continue
 
-    elif method == 'block':
-        m_occ, b_occ = block_lanczos(aux.as_occupied(), 
-                                     h_phys, nmom+1, qr=qr)
-        m_vir, b_vir = block_lanczos(aux.as_virtual(),
-                                     h_phys, nmom+1, qr=qr)
+        if nmom == 0:
+            m, b = block_lanczos_1block(part, h_phys, qr=qr)
+            t = build_block_tridiag(m, b)
+        elif method == 'block':
+            m, b = block_lanczos(part, h_phys, nmom+1, qr=qr)
+            t = build_block_tridiag(m, b)
+        else:
+            t = band_lanczos(part, h_phys, nmom+1, qr=qr)
 
-        t_occ = build_block_tridiag(m_occ, b_occ)
-        t_vir = build_block_tridiag(m_vir, b_vir)
+        e, v = build_auxiliaries(t, aux.nphys)
+        red = red + aux.new(e, v)
 
-    else:
-        t_occ = band_lanczos(aux.as_occupied(), 
-                             h_phys, nmom+1, qr=qr)
-        t_vir = band_lanczos(aux.as_virtual(),
-                             h_phys, nmom+1, qr=qr)
+    return red
 
-    e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
-    e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
+    #if nmom == 0:
+    #    m_occ, b_occ = block_lanczos_1block(aux.as_occupied(), 
+    #                                      h_phys, qr=qr)
+    #    m_vir, b_vir = block_lanczos_1block(aux.as_virtual(), 
+    #                                      h_phys, qr=qr)
 
-    red_occ = aux.new(e_occ, v_occ)
-    red_vir = aux.new(e_vir, v_vir)
-    red = red_occ + red_vir
+    #    t_occ = build_block_tridiag(m_occ, b_occ)
+    #    t_vir = build_block_tridiag(m_vir, b_vir)
+
+    #elif method == 'block':
+    #    m_occ, b_occ = block_lanczos(aux.as_occupied(), 
+    #                                 h_phys, nmom+1, qr=qr)
+    #    m_vir, b_vir = block_lanczos(aux.as_virtual(),
+    #                                 h_phys, nmom+1, qr=qr)
+
+    #    t_occ = build_block_tridiag(m_occ, b_occ)
+    #    t_vir = build_block_tridiag(m_vir, b_vir)
+
+    #else:
+    #    t_occ = band_lanczos(aux.as_occupied(), 
+    #                         h_phys, nmom+1, qr=qr)
+    #    t_vir = band_lanczos(aux.as_virtual(),
+    #                         h_phys, nmom+1, qr=qr)
+
+    #e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
+    #e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
+
+    #red_occ = aux.new(e_occ, v_occ)
+    #red_vir = aux.new(e_vir, v_vir)
+    #red = red_occ + red_vir
 
     return red
