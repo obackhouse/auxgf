@@ -52,8 +52,8 @@ class RHF(hf.HF):
 
         Parameters
         ----------
-        rdm1 : (n,n) array
-            one-body reduced density matrix, in atomic-orbital basis
+        rdm1 : (n,n) ndarray
+            one-body reduced density matrix
         basis : str, optional
             input basis of `rdm1`, and output basis of `fock`, 
             default 'ao'
