@@ -229,9 +229,6 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     if not _is_tuple(chempot):
         chempot = (chempot, chempot)
 
-    assert np.asarray(e).ndim == 2
-    assert np.asarray(eri).ndim == 5
-
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
     eija, vija = build_ump2_part(eo, ev, xija, wtol=wtol,
@@ -543,7 +540,9 @@ def build_ump2_se_direct(e, eri, grid, chempot=0.0, ordering='feynman'):
 
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    se  = build_ump2_part_se_direct(eo, ev, xija, grid, chempot=chempot)
-    se += build_ump2_part_se_direct(ev, eo, xabi, grid, chempot=chempot)
+    se  = build_ump2_part_se_direct(eo, ev, xija, grid, 
+                                    chempot=chempot, ordering=ordering)
+    se += build_ump2_part_se_direct(ev, eo, xabi, grid, 
+                                    chempot=chempot, ordering=ordering)
 
     return se
