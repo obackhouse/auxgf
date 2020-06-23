@@ -6,13 +6,12 @@
 import numpy as np
 from pyscf import lib
 from pyscf.ao2mo import _ao2mo
-from scipy.optimize import minimize
 import functools
 import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
-from auxgf.agf2 import chempot
+from auxgf.agf2.chempot import minimize, diag_fock_ext
 
 
 #TODO: save/load, damping, scs
@@ -344,18 +343,11 @@ class OptRAGF2(util.AuxMethod):
 
     @util.record_time('fock')
     def fock_loop(self):
-        def diag_fock_ext(cpt):
-            self.se.as_hamiltonian(fock, chempot=cpt, out=buf)
-            w, v = util.eigh(buf)
-            cpt, err = util.chempot._find_chempot(self.nphys, self.nelec, h=(w,v))
-            return w, v, cpt, err
-
         diis = util.DIIS(self.options['diis_space'])
         fock = self.get_fock()
         rdm1_prev = np.zeros_like(self.rdm1)
         dtol = self.options['dtol']
 
-        obj = lambda x : abs((diag_fock_ext(x))[-1])
         buf = np.zeros((self.nphys + self.naux,)*2, dtype=types.float64)
         w = np.zeros((self.nphys + self.naux,), dtype=types.float64)
         v = np.zeros_like(buf)
@@ -368,17 +360,11 @@ class OptRAGF2(util.AuxMethod):
                   '-'*12), self.verbose)
 
         for nrun in range(self.options['fock_maxruns']):
-            w, v, self.se.chempot, error = diag_fock_ext(0)
-
-            #opt = minimize(obj, method='SLSQP', x0=self.se.chempot, 
-            #               options=dict(maxiter=200, ftol=dtol))
-            #self.se._ener -= opt.x
-
-            se, opt = chempot.minimize(self.se, fock, self.nelec, buf=buf, 
-                                       x0=self.se.chempot, tol=dtol)
+            se, opt = minimize(self.se, fock, self.nelec, buf=buf, tol=dtol, 
+                               x0=self.se.chempot, method='newton', jac=True)
 
             for niter in range(self.options['fock_maxiter']):
-                w, v, self.se.chempot, error = diag_fock_ext(0)
+                w, v, self.se.chempot, error = diag_fock_ext(self.se, fock, self.nelec)
 
                 c_occ = v[:self.nphys, w < self.se.chempot]
                 self.rdm1 = np.dot(c_occ, c_occ.T) * 2

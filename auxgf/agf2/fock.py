@@ -2,10 +2,10 @@
 '''
 
 import numpy as np
-from scipy.optimize import minimize_scalar
 
 from auxgf import util
 from auxgf.util import types, log, mpi
+from auxgf.agf2.chempot import minimize, diag_fock_ext
 
 # If anyone is reading this I sincerely apologise for how shit this code is
 
@@ -77,12 +77,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
     options = _set_options(**kwargs)
 
     diis = util.DIIS(space=options['diis_space'])
-
     fock = hf.get_fock(rdm, basis='mo')
-
-    e0 = se.e.copy()
-    v0 = se.v.copy()
-    chempot = se.chempot
     nphys = se.nphys
 
     frozen = options['frozen']
@@ -90,20 +85,6 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = hf.nelec - frozen[0] * 2
-
-
-    def _diag_fock_ext(chempot):
-        _fock_ext = _get_fock_ext(fock[act,act], e0, v0, chempot)
-        _w, _v = util.eigh(_fock_ext)
-        _chempot, _error = util.find_chempot(nphys, nelec_act, h=(_w, _v))
-        return _w, _v, _chempot, _error
-
-    def _obj(x):
-        return abs((_diag_fock_ext(x))[-1])
-
-    def _minimize(homo, lumo):
-        return minimize_scalar(_obj, bounds=(homo, lumo), method='bounded',
-                        options={ 'maxiter': 1000, 'xatol': options['netol']})
 
 
     log.write('%52s\n' % ('-'*52), options['verbose'])
@@ -115,19 +96,12 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
 
     for nrun in range(1, options['maxruns']+1):
-        w, v, chempot, error = _diag_fock_ext(0.0)
-
-        homo = util.amax(w[w < chempot])
-        lumo = util.amin(w[w >= chempot])
-
-        if not (homo is np.nan or lumo is np.nan):
-            res = _minimize(homo, lumo)
-            e0 -= res.x
+        se, opt = minimize(se, fock, hf.nelec, x0=se.chempot, tol=options['netol'])
 
         for niter in range(1, options['maxiter']+1):
-            w, v, chempot, error = _diag_fock_ext(0.0)
+            w, v, se.chempot, error = diag_fock_ext(se, fock, hf.nelec)
 
-            c_occ = v[:nphys, w < chempot]
+            c_occ = v[:nphys, w < se.chempot]
             rdm[act,act] = np.dot(c_occ, c_occ.T) * 2
             fock = hf.get_fock(rdm, basis='mo')
 
@@ -142,22 +116,14 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
             rdm_prev = rdm.copy()
 
         log.write('%6d %12.6g %6d %12.6g %12.6f\n' % 
-                  (nrun, rmsd, niter, error, chempot), options['verbose'])
+                  (nrun, rmsd, niter, error, se.chempot), options['verbose'])
 
         if rmsd < options['dtol'] and abs(error) < options['netol']:
             break
 
-    # TODO these are sometimes flagged but doesn't seem to be a problem...
-    #if homo is np.nan:
-    #    util.log.warn('Could not find a HOMO in Fock loop.')
-    #elif lumo is np.nan:
-    #    util.log.warn('Could not find a LUMO in Fock loop.')
-
     converged = rmsd < options['dtol'] and abs(error) < options['netol']
 
     log.write('%52s\n' % ('-'*52), options['verbose'])
-
-    se = se.new(e0, v0, chempot=chempot)
 
     return se, rdm, converged
 
@@ -206,12 +172,7 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
     options = _set_options(**kwargs)
 
     diis = util.DIIS(space=options['diis_space'])
-
     fock = hf.get_fock(rdm, basis='mo')
-
-    e0 = (se[0].e.copy(), se[1].e.copy())
-    v0 = (se[0].v.copy(), se[1].v.copy())
-    chempot = (se[0].chempot, se[1].chempot)
     nphys = se[0].nphys
 
     frozen = options['frozen']
@@ -219,21 +180,6 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = (hf.nalph - frozen[0], hf.nbeta - frozen[0])
-
-
-    def _diag_fock_ext(chempot, ab):
-        _fock_ext = _get_fock_ext(fock[ab][act,act], e0[ab], v0[ab], chempot)
-        _w, _v = util.eigh(_fock_ext)
-        _chempot, _error = util.find_chempot(nphys, nelec_act[ab], h=(_w, _v),
-                                             occupancy=1.0)
-        return _w, _v, _chempot, _error
-
-    def _obj(x, ab):
-        return abs((_diag_fock_ext(x, ab))[-1])
-
-    def _minimize(homo, lumo, ab):
-        return minimize_scalar(_obj, bounds=(homo, lumo), method='bounded',
-               options={ 'maxiter': 1000, 'xatol': options['netol']}, args=(ab))
 
 
     log.write('%65s\n' % ('-'*65), options['verbose'])
@@ -245,32 +191,20 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
 
     for nrun in range(1, options['maxruns']+1):
-        w_a, v_a, chempot_a, error_a = _diag_fock_ext(0.0, 0)
-        w_b, v_b, chempot_b, error_b = _diag_fock_ext(0.0, 1)
-
-        chempot = (chempot_a, chempot_b)
-        error = (error_a, error_b)
-
-        homo_a = util.amax(w_a[w_a < chempot[0]])
-        lumo_a = util.amin(w_b[w_b >= chempot[0]])
-        homo_b = util.amax(w_a[w_a < chempot[1]])
-        lumo_b = util.amin(w_b[w_b >= chempot[1]])
-
-        if not (homo_a is np.nan or homo_b is np.nan 
-                or lumo_a is np.nan or lumo_b is np.nan):
-            res_a = _minimize(homo_a, lumo_a, 0)
-            res_b = _minimize(homo_b, lumo_b, 1)
-            e0 = (e0[0] - res_a.x, e0[1] - res_b.x)
+        se_a, res_a = minimize(se[0], fock[0], hf.nalph, x0=se[0].chempot, 
+                               tol=options['netol'], occupancy=1.0)
+        se_b, res_b = minimize(se[1], fock[1], hf.nbeta, x0=se[1].chempot,
+                               tol=options['netol'], occupancy=1.0)
 
         for niter in range(1, options['maxiter']+1):
-            w_a, v_a, chempot_a, error_a = _diag_fock_ext(0.0, 0)
-            w_b, v_b, chempot_b, error_b = _diag_fock_ext(0.0, 1)
-
-            chempot = (chempot_a, chempot_b)
+            w_a, v_a, se[0].chempot, error_a = \
+                    diag_fock_ext(se[0], fock[0], hf.nalph, occupancy=1.0)
+            w_b, v_b, se[1].chempot, error_b = \
+                    diag_fock_ext(se[1], fock[1], hf.nbeta, occupancy=1.0)
             error = (error_a, error_b)
 
-            c_occ_a = v_a[:nphys, w_a < chempot[0]]
-            c_occ_b = v_b[:nphys, w_b < chempot[1]]
+            c_occ_a = v_a[:nphys, w_a < se[0].chempot]
+            c_occ_b = v_b[:nphys, w_b < se[1].chempot]
 
             rdm_a = np.dot(c_occ_a, c_occ_a.T)
             rdm_b = np.dot(c_occ_b, c_occ_b.T)
@@ -288,25 +222,17 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
             rdm_prev = rdm.copy()
 
-        log.write('%6d %12.6g %6d %12.6g %12.6f %12.6f\n' % 
-                  (nrun, rmsd, niter, max(error), *chempot), options['verbose'])
+        log.write('%6d %12.6g %6d %12.6g %12.6f %12.6f\n' % (nrun, rmsd, niter, 
+                  max(error), se[0].chempot, se[1].chempot), options['verbose'])
 
         error_max = max(abs(error[0]), abs(error[1]))
 
         if rmsd < options['dtol'] and error_max < options['netol']:
             break
 
-    #if homo_a is np.nan or homo_b is np.nan:
-    #    util.log.warn('Could not find a HOMO in Fock loop.')
-    #elif lumo_a is np.nan or lumo_b is np.nan:
-    #    util.log.warn('Could not find a LUMO in Fock loop.')
-
     converged = rmsd < options['dtol'] and error_max < options['netol']
 
     log.write('%65s\n' % ('-'*65), options['verbose'])
-
-    se = (se[0].new(e0[0], v0[0], chempot=chempot[0]), 
-          se[1].new(e0[1], v0[1], chempot=chempot[1]))
 
     return se, rdm, converged
     
