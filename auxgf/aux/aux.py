@@ -110,18 +110,15 @@ class Aux:
     '''
 
 
-    def __init__(self, e, v, **kwargs):
-        self._setup(e, v, **kwargs)
+    def __init__(self, e, v, chempot=0.0):
+        self._setup(e, v, chempot=chempot)
 
 
-    def _setup(self, e, v, **kwargs):
+    def _setup(self, e, v, chempot=0.0):
         self._ener = np.asarray(e, dtype=types.float64)
         self._coup = np.ascontiguousarray(v, dtype=types.float64)
 
-        self.chempot = 0.0
-
-        for item in kwargs.items():
-            setattr(self, *item)
+        self.chempot = 0.0 if None else chempot
 
 
     @staticmethod
@@ -564,7 +561,7 @@ class Aux:
 
         if not run_anyway:
             if 2*self.nphys*(nmom+1) > self.naux:
-                return self
+                return self.copy()
 
         red = setrunc.run(self, h_phys, nmom, qr=qr)
 
@@ -599,7 +596,7 @@ class Aux:
 
         if not run_anyway:
             if self.nphys*(2*nmom+1) > self.naux:
-                return self
+                return self.copy()
 
         red = gftrunc.run(self, h_phys, nmom, method=method, 
                           beta=beta, chempot=chempot)
@@ -636,7 +633,7 @@ class Aux:
         '''
 
         if nmom is None or nmom == (None, None):
-            return self # why?
+            return self.copy()
         elif nmom[0] == None:
             return self.se_compress(h_phys, nmom[1], qr=qr)
         elif nmom[1] == None:
@@ -762,7 +759,7 @@ class Aux:
     __sizeof__ = memsize
 
 
-    def new(self, e, v, chempot=None):
+    def new(self, e, v, chempot=0.0):
         ''' Returns a new Aux object with different energies and
             couplings, inheriting all other attributes.
 
@@ -784,16 +781,7 @@ class Aux:
         e = np.asarray(e, dtype=types.float64)
         v = np.ascontiguousarray(v, dtype=types.float64)
 
-        aux = Aux(None, None)
-
-        for item in self.__dict__.items():
-            setattr(aux, *item)
-
-        aux._ener = e
-        aux._coup = v
-
-        if chempot is not None:
-            aux.chempot = chempot
+        aux = Aux(e, v, chempot=chempot)
 
         return aux
 
