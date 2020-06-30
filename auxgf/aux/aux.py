@@ -759,7 +759,7 @@ class Aux:
     __sizeof__ = memsize
 
 
-    def new(self, e, v, chempot=0.0):
+    def new(self, e, v, chempot=None):
         ''' Returns a new Aux object with different energies and
             couplings, inheriting all other attributes.
 
@@ -777,6 +777,9 @@ class Aux:
         aux : Aux
             new auxiliaries
         '''
+
+        if chempot is None:
+            chempot = self.chempot
 
         e = np.asarray(e, dtype=types.float64)
         v = np.ascontiguousarray(v, dtype=types.float64)
