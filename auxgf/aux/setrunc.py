@@ -322,36 +322,3 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
         red = red + aux.new(e, v)
 
     return red
-
-    #if nmom == 0:
-    #    m_occ, b_occ = block_lanczos_1block(aux.as_occupied(), 
-    #                                      h_phys, qr=qr)
-    #    m_vir, b_vir = block_lanczos_1block(aux.as_virtual(), 
-    #                                      h_phys, qr=qr)
-
-    #    t_occ = build_block_tridiag(m_occ, b_occ)
-    #    t_vir = build_block_tridiag(m_vir, b_vir)
-
-    #elif method == 'block':
-    #    m_occ, b_occ = block_lanczos(aux.as_occupied(), 
-    #                                 h_phys, nmom+1, qr=qr)
-    #    m_vir, b_vir = block_lanczos(aux.as_virtual(),
-    #                                 h_phys, nmom+1, qr=qr)
-
-    #    t_occ = build_block_tridiag(m_occ, b_occ)
-    #    t_vir = build_block_tridiag(m_vir, b_vir)
-
-    #else:
-    #    t_occ = band_lanczos(aux.as_occupied(), 
-    #                         h_phys, nmom+1, qr=qr)
-    #    t_vir = band_lanczos(aux.as_virtual(),
-    #                         h_phys, nmom+1, qr=qr)
-
-    #e_occ, v_occ = build_auxiliaries(t_occ, aux.nphys)
-    #e_vir, v_vir = build_auxiliaries(t_vir, aux.nphys)
-
-    #red_occ = aux.new(e_occ, v_occ)
-    #red_vir = aux.new(e_vir, v_vir)
-    #red = red_occ + red_vir
-
-    return red
