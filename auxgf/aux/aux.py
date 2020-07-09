@@ -165,7 +165,7 @@ class Aux:
 
 
     @staticmethod
-    def build_spectrum(grid, e, v, chempot=0.0, ordering='feynman'):
+    def build_spectrum(grid, e, v, chempot=0.0, ordering='feynman', blksize=100):
         ''' Builds a spectrum on a frequency grid using the auxiliaries.
 
         Parameters
@@ -178,9 +178,11 @@ class Aux:
             auxiliary couplings
         chempot : float, optional
             chemical potential
-        ordering : str
-            ordering of the poles {'feynman', 'advanced', 'retarded'}
-            (default 'feynman')
+        ordering : str, optional
+            ordering of the poles {'feynman', 'advanced', 'retarded'},
+            default 'feynman'
+        blksize : int, optional
+            number of frequency points per block, default 100
 
         Returns
         -------
@@ -208,15 +210,17 @@ class Aux:
 
         sf = np.zeros((grid.size, nphys, nphys), dtype=types.complex128)
 
-        for i,w in enumerate(freq):
-            denom = 1.0 / (w - es)
-            sf[i] = util.einsum('xk,yk,k->xy', v, v, denom)
+        p1 = 0
+        for block in range(0, len(freq), blksize):
+            p0, p1 = p1, p1 + blksize
+            denom = 1.0 / util.outer_sum([freq[p0:p1], -es])
+            sf[p0:p1] += util.einsum('xk,yk,wk->wxy', v, v, denom)
 
         return sf
 
 
     @staticmethod
-    def build_derivative(grid, e, v, chempot=0.0, ordering='feynman'):
+    def build_derivative(grid, e, v, chempot=0.0, ordering='feynman', blksize=100):
         ''' Builds the derivative of the spectrum with respect to
             frequency on a frequency grid using the auxiliaries.
 
@@ -231,8 +235,10 @@ class Aux:
         chempot : float, optional
             chemical potential
         ordering : str
-            ordering of the poles {'feynman', 'advanced', 'retarded'}
-            (default 'feynman')
+            ordering of the poles {'feynman', 'advanced', 'retarded'},
+            default 'feynman'
+        blksize : int, optional
+            number of frequency points per block, default 100
 
         Returns
         -------
@@ -257,9 +263,11 @@ class Aux:
 
         dsf = np.zeros((grid.size, nphys, nphys), dtype=types.complex128)
 
-        for i,w in enumerate(freq):
-            denom = 1.0 / (w - es) ** 2
-            dsf[i] = -util.einsum('xk,yk,k->xy', v, v, denom)
+        p1 = 0
+        for block in range(0, len(freq), blksize):
+            p0, p1 = p1, p1 + blksize
+            denom = 1.0 / util.outer_sum([freq[p0:p1], -es]) ** 2
+            dsf[p0:p1] -= util.einsum('xk,yk,wk->wxy', v, v, denom)
 
         return dsf
 
