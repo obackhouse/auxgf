@@ -483,8 +483,7 @@ def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman
     else:
         get_s = lambda x : 0.0
 
-    w_a = grid.prefac * grid.values
-    w_b = grid.prefac * grid.values
+    w = grid.prefac * grid.values
 
     nphys, nocca, _, nvira = xija[0].shape
     se = np.zeros((grid.shape[0], nphys, nphys), dtype=types.complex128)
@@ -500,8 +499,8 @@ def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman
         vip_a = xija[0][:,:,i].reshape((nphys, -1))
         vi_b = xija[1][:,i].reshape((nphys, -1))
 
-        di_a = 1.0 / util.outer_sum([w_a, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
-        di_b = 1.0 / util.outer_sum([w_b, -ei_b + get_s(ei_b) * grid.eta * 1.0j])
+        di_a = 1.0 / util.outer_sum([w, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
+        di_b = 1.0 / util.outer_sum([w, -ei_b + get_s(ei_b) * grid.eta * 1.0j])
 
         se += util.einsum('wk,xk,yk->wxy', di_a, vi_a, vi_a - vip_a)
         se += util.einsum('wk,xk,yk->wxy', di_b, vi_b, vi_b)
