@@ -146,7 +146,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.absolute(se_a - self.se[0].as_spectrum(imfq))), 0, 8)
         self.assertAlmostEqual(np.max(np.absolute(se_b - self.se[1].as_spectrum(imfq))), 0, 8)
 
-    def test_build_se_direct(self):
+    def test_build_ump2_se_direct(self):
         (eoa, eob), (eva, evb), (xija_aa, xija_ab), (xabi_aa, xabi_ab) = aux.ump2._parse_uhf(self.uhf.e, self.eri[0], self.uhf.chempot)
         _, _, (xija_bb, xija_ba), (xabi_bb, xabi_ba) = aux.ump2._parse_uhf(self.uhf.e[::-1], self.eri[1][::-1], self.uhf.chempot[::-1])
         nocca, noccb, nvira, nvirb = eoa.size, eob.size, eva.size, evb.size
