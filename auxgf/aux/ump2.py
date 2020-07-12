@@ -13,7 +13,7 @@ _is_tuple = lambda x : isinstance(x, (tuple, list, np.ndarray))
 
 def _parse_uhf(e, eri, chempot):
     if not (np.all(np.diff(e[0]) >= 0) and np.all(np.diff(e[1])) >= 0):
-        # See auxgf.aux.build.rmp2._parse_rhf
+        # See auxgf.aux.rmp2._parse_rhf
 
         oa = e[0] < chempot[0]
         va = e[0] >= chempot[0]
