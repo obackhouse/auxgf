@@ -11,7 +11,8 @@ import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
-from auxgf.agf2.chempot import minimize, diag_fock_ext
+#from auxgf.agf2.chempot import minimize, diag_fock_ext
+from auxgf.agf2.fock import fock_loop_rhf
 
 
 #TODO: save/load, damping, scs
@@ -38,6 +39,14 @@ def _set_options(options, **kwargs):
             raise ValueError('%s argument invalid.' % key)
 
     options.update(kwargs)
+
+    options['_fock_loop'] = {
+        'dtol': options['dtol'],
+        'diis_space': options['diis_space'],
+        'maxiter': options['fock_maxiter'],
+        'maxruns': options['fock_maxruns'],
+        'verbose': options['verbose'],
+    }
 
     return options
 
@@ -343,53 +352,11 @@ class OptRAGF2(util.AuxMethod):
 
     @util.record_time('fock')
     def fock_loop(self):
-        diis = util.DIIS(self.options['diis_space'])
-        fock = self.get_fock()
-        rdm1_prev = np.zeros_like(self.rdm1)
-        dtol = self.options['dtol']
+        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1,
+                                            **self.options['_fock_loop'])
 
-        buf = np.zeros((self.nphys + self.naux,)*2, dtype=types.float64)
-        w = np.zeros((self.nphys + self.naux,), dtype=types.float64)
-        v = np.zeros_like(buf)
-
-        log.write('%52s\n' % ('-'*52), self.verbose)
-        log.write('Fock loop'.center(52) + '\n', self.verbose)
-        log.write('%6s %12s %6s %12s %12s\n' % ('loop', 'RMSD', 'niter',
-                  'nelec_error', 'chempot'), self.verbose)
-        log.write('%6s %12s %6s %12s %12s\n' % ('-'*6, '-'*12, '-'*6, '-'*12, 
-                  '-'*12), self.verbose)
-
-        for nrun in range(self.options['fock_maxruns']):
-            se, opt = minimize(self.se, fock, self.nelec, buf=buf, tol=dtol, 
-                               x0=self.se.chempot, method='newton', jac=True)
-
-            for niter in range(self.options['fock_maxiter']):
-                w, v, self.se.chempot, error = diag_fock_ext(self.se, fock, self.nelec)
-
-                c_occ = v[:self.nphys, w < self.se.chempot]
-                self.rdm1 = np.dot(c_occ, c_occ.T) * 2
-                fock = self.get_fock()
-
-                fock = diis.update(fock)
-                derr = np.linalg.norm(self.rdm1 - rdm1_prev)
-
-                if derr < dtol:
-                    break
-
-                rdm1_prev = self.rdm1.copy()
-
-            log.write('%6d %12.6g %6d %12.6g %12.6f\n' % 
-                      (nrun, derr, niter, error, self.se.chempot), self.verbose)
-
-            if derr < dtol and abs(error) < dtol:
-                break
-
+        w, v = self.se.eig(self.get_fock())
         self.gf = self.se.new(w, v[:self.nphys])
-
-        converged = derr < dtol and abs(error) < dtol
-
-        log.write('%6s %12s %6s %12s %12s\n' % ('-'*6, '-'*12, '-'*6, '-'*12, 
-                  '-'*12), self.verbose)
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
