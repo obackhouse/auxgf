@@ -18,6 +18,8 @@ def _set_options(**kwargs):
                 'maxiter': 50,
                 'maxruns': 20,
                 'frozen': 0,
+                'method': 'newton',
+                'jac': True,
     }
 
     for key,val in kwargs.items():
@@ -63,6 +65,10 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
     maxruns : int, optional
         maximum number of iterations of the outer Fock loop,
         default 20
+    method : str, optional
+        minimization algorithm to use, default 'newton'
+    jac : bool, optional
+        if True, use the gradient function, default True
 
     Returns
     -------
@@ -85,6 +91,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = hf.nelec - frozen[0] * 2
+    buf = np.zeros((nphys + se.naux,)*2, dtype=types.float64)
 
 
     log.write('%52s\n' % ('-'*52), options['verbose'])
@@ -96,7 +103,9 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
 
     for nrun in range(1, options['maxruns']+1):
-        se, opt = minimize(se, fock, hf.nelec, x0=se.chempot, tol=options['netol'])
+        se, opt = minimize(se, fock, hf.nelec, buf=buf, x0=se.chempot, 
+                           tol=options['netol'], jac=options['jac'], 
+                           method=options['method'])
 
         for niter in range(1, options['maxiter']+1):
             w, v, se.chempot, error = diag_fock_ext(se, fock, hf.nelec)
@@ -157,6 +166,10 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
     maxruns : int, optional
         maximum number of iterations of the outer Fock loop,
         default 20
+    method : str, optional
+        minimization algorithm to use, default 'newton'
+    jac : bool, optional
+        if True, use the gradient function, default True
 
     Returns
     -------
@@ -180,6 +193,8 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = (hf.nalph - frozen[0], hf.nbeta - frozen[0])
+    bufa = np.zeros((nphys + se[0].naux,)*2, dtype=types.float64)
+    bufb = np.zeros((nphys + se[1].naux,)*2, dtype=types.float64)
 
 
     log.write('%65s\n' % ('-'*65), options['verbose'])
@@ -192,9 +207,11 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
     for nrun in range(1, options['maxruns']+1):
         se_a, res_a = minimize(se[0], fock[0], hf.nalph, x0=se[0].chempot, 
-                               tol=options['netol'], occupancy=1.0)
+                               tol=options['netol'], occupancy=1.0, buf=bufa,
+                               method=options['method'], jac=options['jac'])
         se_b, res_b = minimize(se[1], fock[1], hf.nbeta, x0=se[1].chempot,
-                               tol=options['netol'], occupancy=1.0)
+                               tol=options['netol'], occupancy=1.0, buf=bufb,
+                               method=options['method'], jac=options['jac'])
 
         for niter in range(1, options['maxiter']+1):
             w_a, v_a, se[0].chempot, error_a = \
