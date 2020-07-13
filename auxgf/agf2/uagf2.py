@@ -159,19 +159,15 @@ class UAGF2(util.AuxMethod):
     @util.record_time('build')
     def build(self):
         self._se_prev = (self.se[0].copy(), self.se[1].copy())
-        eri_act = _active(self, self.eri, 4)
+        eri_act = _active(self, self.eri, 2 if self.hf.with_df else 4)
+        fock_act = _active(self, self.get_fock(), 2)
 
-        if self.iteration:
-            fock_act = _active(self, self.get_fock(), 2)
-            sea, seb = aux.build_ump2_iter(self.se, fock_act, eri_act,
-                                           **self.options['_build'])
+        if self.hf.with_df:
+            sea, seb = aux.build_dfmp2_iter(self.se, fock_act, eri_act,
+                                            **self.options['_build'])
         else:
-            e_act = _active(self, np.asarray((self.gf[0].e, self.gf[1].e)), 1)
-            sea = aux.build_ump2(e_act, eri_act[0], **self.options['_build'],
-                                 chempot=self.chempot[0])
-            seb = aux.build_ump2(e_act[::-1], eri_act[1][::-1], 
-                                 **self.options['_build'], 
-                                 chempot=self.chempot[1])
+            sea, seb = aux.build_mp2_iter(self.se, fock_act, eri_act,
+                                          **self.options['_build'])
 
         if self.options['use_merge']:
             sea = sea.merge(etol=self.options['etol'], 

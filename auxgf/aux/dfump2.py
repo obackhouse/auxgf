@@ -247,8 +247,8 @@ def build_dfump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1
 
     eo = (ea[oa], eb[ob])
     ev = (ea[va], eb[vb])
-    co = (ca[:se[0].nphys,oa], cb[:se[0].nphys,ob])
-    cv = (ca[:se[1].nphys,va], cb[:se[1].nphys,vb])
+    co = (ca[:se[0].nphys,oa], cb[:se[1].nphys,ob])
+    cv = (ca[:se[0].nphys,va], cb[:se[1].nphys,vb])
     eye = np.eye(nphys)
 
     ixq_a = util.ao2mo_df(eri_mo[0], co[0], eye)
