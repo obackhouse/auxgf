@@ -681,3 +681,26 @@ def density(array, tol=1e-14):
     '''
 
     return 1.0 - sparsity(array, tol=tol)
+
+
+def is_iter(x):
+    try:
+        iter(x)
+        return True
+    except TypeError:
+        return False
+
+def iter_depth(x):
+    n = 0
+    y = x
+
+    while True:
+        if isinstance(y, str):
+            break
+        elif is_iter(y):
+            n += 1
+            y = y[0]
+        else:
+            break
+
+    return n
