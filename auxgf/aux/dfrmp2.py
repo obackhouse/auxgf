@@ -162,14 +162,14 @@ def build_dfrmp2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     return poles
 
 
-def build_dfrmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfrmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries of previous iteration
     h_phys : (n,n) ndarray
         physical space hamiltonian
@@ -188,20 +188,20 @@ def build_dfrmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=
         auxiliaries
     '''
 
-    e, c = aux.eig(h_phys)
+    e, c = se.eig(h_phys)
 
-    o = e < aux.chempot
-    v = e >= aux.chempot
+    o = e < se.chempot
+    v = e >= se.chempot
 
-    nphys = aux.nphys
+    nphys = se.nphys
     nocc = np.sum(o)
     nvir = np.sum(v)
 
     eo = e[o]
     ev = e[v]
-    co = c[:aux.nphys,o]
-    cv = c[:aux.nphys,v]
-    eye = np.eye(aux.nphys)
+    co = c[:se.nphys,o]
+    cv = c[:se.nphys,v]
+    eye = np.eye(se.nphys)
 
     ixq = util.ao2mo_df(eri_mo, co, eye)
     ixq = _reshape_internal(ixq, (-1, nocc*nphys), (0,1), (nocc, nphys, -1))
@@ -220,7 +220,7 @@ def build_dfrmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
 
-    poles = aux.new(e, v)
+    poles = se.new(e, v)
 
     return poles
 

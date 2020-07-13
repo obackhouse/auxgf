@@ -70,13 +70,13 @@ def kernel(e, nmom, method='power', beta=100, chempot=0.0):
     return f_en
 
 
-def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-12, chempot=0.0):
+def build_projector(se, h_phys, nmom, method='power', beta=100, wtol=1e-12, chempot=0.0):
     ''' Builds the vectors which project the auxiliary space into a
         compressed one with consistent moments up to order `nmom`.
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries
     h_phys : (n,n) ndarray
         physical space Hamiltonian
@@ -97,12 +97,12 @@ def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-12, che
         projection vectors, the outer-product of which is the projector
     '''
 
-    nphys = aux.nphys
+    nphys = se.nphys
 
-    e, c = aux.eig(h_phys)
+    e, c = se.eig(h_phys)
 
-    occ = e < aux.chempot
-    vir = e >= aux.chempot
+    occ = e < se.chempot
+    vir = e >= se.chempot
 
     e_occ = kernel(e[occ], nmom, method=method, beta=beta, chempot=chempot)
     e_vir = kernel(e[vir], nmom, method=method, beta=beta, chempot=chempot)
@@ -113,8 +113,8 @@ def build_projector(aux, h_phys, nmom, method='power', beta=100, wtol=1e-12, che
     p_occ = util.einsum('xi,pi,ni->xpn', c_occ[nphys:], c_occ[:nphys], e_occ)
     p_vir = util.einsum('xa,pa,na->xpn', c_vir[nphys:], c_vir[:nphys], e_vir)
 
-    p_occ = p_occ.reshape((aux.naux, aux.nphys*(nmom+1)))
-    p_vir = p_vir.reshape((aux.naux, aux.nphys*(nmom+1)))
+    p_occ = p_occ.reshape((se.naux, se.nphys*(nmom+1)))
+    p_vir = p_vir.reshape((se.naux, se.nphys*(nmom+1)))
 
     p = np.hstack((p_occ, p_vir))
 
@@ -155,14 +155,14 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom, method='power', beta=100, chempot=0.0):
+def run(se, h_phys, nmom, method='power', beta=100, chempot=0.0):
     ''' Runs the truncation by moments of the Green's function.
 
         [1] arXiv:1904.08019
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries
     h_phys : (n,n) ndarray
         physical space Hamiltonian
@@ -186,22 +186,13 @@ def run(aux, h_phys, nmom, method='power', beta=100, chempot=0.0):
     if method == 'legendre': #FIXME?
         raise NotImplementedError
 
-    p = build_projector(aux, h_phys, nmom, method=method, 
+    p = build_projector(se, h_phys, nmom, method=method, 
                         beta=beta, chempot=chempot)
 
-    h_tilde = np.dot(p.T, aux.dot(h_phys, p))
+    h_tilde = np.dot(p.T, se.dot(h_phys, p))
 
-    e, v = build_auxiliaries(h_tilde, aux.nphys)
+    e, v = build_auxiliaries(h_tilde, se.nphys)
 
-    red = aux.new(e, v)
+    red = se.new(e, v)
 
     return red
-    
-
-
-
-
-
-
-
-

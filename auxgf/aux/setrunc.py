@@ -70,14 +70,14 @@ def build_block_tridiag(m, b):
     return t
 
 
-def block_lanczos(aux, h_phys, nblock, **kwargs):
+def block_lanczos(se, h_phys, nblock, **kwargs):
     ''' Block tridiagonalization of the environment of a Hamiltonian
         spanning the physical and auxiliary space, using the block
         Lanczos algorithm.
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries
     h_phys : (n,n) array
         physical space Hamiltonian
@@ -107,8 +107,8 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         Lanczos vectors (only if `keep_v` is True)
     '''
 
-    nphys = aux.nphys
-    nqmo = nphys + aux.naux
+    nphys = se.nphys
+    nqmo = nphys + se.naux
 
     keep_v = kwargs.get('debug', False) or kwargs.get('keep_v', False)
 
@@ -122,7 +122,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
     b = np.zeros((nblock, nphys, nphys), dtype=types.float64)
 
     v.append(np.eye(nqmo, nphys))
-    u = np.ascontiguousarray(np.block([h_phys, aux.v]).T)
+    u = np.ascontiguousarray(np.block([h_phys, se.v]).T)
 
     if kwargs.get('debug', False):
         assert np.allclose(np.dot(v[0].T, v[0]), np.eye(nphys))
@@ -141,7 +141,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         else:
             v.append(vnext)
 
-        u = aux.dot(h_phys, v[-1])
+        u = se.dot(h_phys, v[-1])
         u -= np.dot(v[-2], b[j].T)
 
     m[nblock] = np.dot(u.T, v[-1])
@@ -154,7 +154,7 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
 
         assert np.allclose(np.dot(vs.T, vs), np.eye(vs.shape[-1]), **tols)
 
-        h = aux.as_hamiltonian(h_phys)
+        h = se.as_hamiltonian(h_phys)
         h_tri = build_block_tridiag(m, b)
         h_proj = util.dots([vs.T, h, vs])
 
@@ -166,23 +166,23 @@ def block_lanczos(aux, h_phys, nblock, **kwargs):
         return m, b, v
 
 
-def block_lanczos_1block(aux, h_phys, **kwargs):
+def block_lanczos_1block(se, h_phys, **kwargs):
     ''' The above function simplifies significantly in the case of nmom=1.
     '''
     qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
-    v, b = qr(aux.v.T)
-    m = util.einsum('ip,i,iq->pq', v, aux.e, v)
+    v, b = qr(se.v.T)
+    m = util.einsum('ip,i,iq->pq', v, se.e, v)
     return [h_phys, m], [b,]
 
 
-def band_lanczos(aux, h_phys, nblock, **kwargs):
+def band_lanczos(se, h_phys, nblock, **kwargs):
     ''' Band diagonalization of the environment of a Hamiltonain
         spanning the physical and auxiliary space, using the block
         Lanczos algorithm.
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries
     h_phys : (n,n) array
         physical space Hamiltonian
@@ -202,19 +202,19 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
         Band-diagonal matrix, side length (`nblock`+1)*`nphys`.
     '''
 
-    nphys = aux.nphys
-    naux = aux.naux
+    nphys = se.nphys
+    naux = se.naux
     nband = int(nblock * nphys)
 
     qr = _get_qr_function(method=kwargs.get('qr', 'cholesky'))
-    v, coup = qr(aux.v.T)
+    v, coup = qr(se.v.T)
 
     q = np.zeros((nband, naux), dtype=np.float64)
     q[:min(nphys, naux)] = v.T
     t = np.zeros((nband, nband), dtype=np.float64)
 
     for i in range(nband):
-        r = aux.e * q[i]
+        r = se.e * q[i]
 
         start = max(i-nphys, 0)
         if start != i:
@@ -231,7 +231,7 @@ def band_lanczos(aux, h_phys, nblock, **kwargs):
     
     if kwargs.get('debug', False):
         # This might fail if naux < nphys
-        assert np.allclose(np.dot(q, aux.e[:,None] * q.T), t)
+        assert np.allclose(np.dot(q, se.e[:,None] * q.T), t)
 
     coup_block = np.zeros((nband, nphys), dtype=np.float64)
     coup_block[:min(nphys, naux)] = coup
@@ -269,7 +269,7 @@ def build_auxiliaries(h, nphys):
     return e, v
 
 
-def run(aux, h_phys, nmom, method='band', qr='cholesky'):
+def run(se, h_phys, nmom, method='band', qr='cholesky'):
     ''' Runs the truncation by moments of the self-energy.
         
         [1] H. Muther, T. Taigel and T. T. S. Kuo, Nucl. Phys., 482, 
@@ -283,7 +283,7 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     Parameters
     ----------
-    aux : Aux
+    se : Aux
         auxiliaries
     h_phys : (n,n) ndarray
         physical space Hamiltonian
@@ -303,9 +303,9 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
 
     #TODO: debugging mode which checks the moments
 
-    red = aux.new([], [[],]*aux.nphys)
+    red = se.new([], [[],]*se.nphys)
 
-    for part in [aux.as_occupied(), aux.as_virtual()]:
+    for part in [se.as_occupied(), se.as_virtual()]:
         if part.naux == 0:
             continue
 
@@ -318,7 +318,7 @@ def run(aux, h_phys, nmom, method='band', qr='cholesky'):
         else:
             t = band_lanczos(part, h_phys, nmom+1, qr=qr)
 
-        e, v = build_auxiliaries(t, aux.nphys)
-        red = red + aux.new(e, v)
+        e, v = build_auxiliaries(t, se.nphys)
+        red = red + se.new(e, v)
 
     return red

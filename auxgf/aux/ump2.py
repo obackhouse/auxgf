@@ -244,7 +244,7 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return poles
 
 
-def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_ump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -282,18 +282,18 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
     if h_phys.ndim == 2:
         h_phys = np.stack((h_phys, h_phys))
 
-    ea, ca = aux[0].eig(h_phys[0])
-    eb, cb = aux[1].eig(h_phys[1])
+    ea, ca = se[0].eig(h_phys[0])
+    eb, cb = se[1].eig(h_phys[1])
 
-    oa = ea < aux[0].chempot
-    ob = eb < aux[1].chempot
-    va = ea >= aux[0].chempot
-    vb = eb >= aux[1].chempot
+    oa = ea < se[0].chempot
+    ob = eb < se[1].chempot
+    va = ea >= se[0].chempot
+    vb = eb >= se[1].chempot
 
     eo = (ea[oa], eb[ob])
     ev = (ea[va], eb[vb])
-    co = (ca[:aux[0].nphys,oa], cb[:aux[0].nphys,ob])
-    cv = (ca[:aux[1].nphys,va], cb[:aux[1].nphys,vb])
+    co = (ca[:se[0].nphys,oa], cb[:se[0].nphys,ob])
+    cv = (ca[:se[1].nphys,va], cb[:se[1].nphys,vb])
 
     xija_aaaa = util.mo2qo(eri_mo[0,0], co[0], co[0], cv[0])
     xija_aabb = util.mo2qo(eri_mo[0,1], co[0], co[1], cv[1])
@@ -328,8 +328,8 @@ def build_ump2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
     va = np.concatenate((vija_a, vabi_a), axis=1)
     vb = np.concatenate((vija_b, vabi_b), axis=1)
 
-    poles_a = aux[0].new(ea, va)
-    poles_b = aux[1].new(eb, vb)
+    poles_a = se[0].new(ea, va)
+    poles_b = se[1].new(eb, vb)
 
     return poles_a, poles_b
 

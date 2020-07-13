@@ -224,7 +224,7 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return poles
 
 
-def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -250,15 +250,15 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
         auxiliaries
     '''
 
-    e, c = aux.eig(h_phys)
+    e, c = se.eig(h_phys)
 
-    o = e < aux.chempot
-    v = e >= aux.chempot
+    o = e < se.chempot
+    v = e >= se.chempot
 
     eo = e[o]
     ev = e[v]
-    co = c[:aux.nphys,o]
-    cv = c[:aux.nphys,v]
+    co = c[:se.nphys,o]
+    cv = c[:se.nphys,v]
 
     xija = util.mo2qo(eri_mo, co, co, cv)
     eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol,
@@ -273,7 +273,7 @@ def build_rmp2_iter(aux, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
 
-    poles = aux.new(e, v)
+    poles = se.new(e, v)
 
     return poles
 
