@@ -82,32 +82,37 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
     options = _set_options(**kwargs)
 
-    diis = util.DIIS(space=options['diis_space'])
+    diis_space = options['diis_space']
+    tol = options['netol']
+    dtol = options['dtol']
+    verbose = options['verbose']
+    maxiter = options['maxiter']
+    maxruns = options['maxruns']
+    frozen = options['frozen']
+    method = options['method']
+    jac = options['jac']
+
+    diis = util.DIIS(space=diis_space)
     fock = hf.get_fock(rdm, basis='mo')
     nphys = se.nphys
 
-    frozen = options['frozen']
     if not isinstance(frozen, tuple):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = hf.nelec - frozen[0] * 2
+
     buf = np.zeros((nphys + se.naux,)*2, dtype=types.float64)
 
-
-    log.write('%52s\n' % ('-'*52), options['verbose'])
-    log.write('Fock loop'.center(52) + '\n', options['verbose'])
-    log.write('%6s %12s %6s %12s %12s\n' % ('loop', 'RMSD', 'niter',
-              'nelec_error', 'chempot'), options['verbose'])
-    log.write('%6s %12s %6s %12s %12s\n' % ('-'*6, '-'*12, '-'*6, '-'*12, 
-              '-'*12), options['verbose'])
+    log.write('----------------------------------------------------\n', verbose)
+    log.write('                     Fock loop                      \n', verbose)
+    log.write('  loop         RMSD  niter  nelec error      chempot\n', verbose)
+    log.write('------ ------------ ------ ------------ ------------\n', verbose)
 
 
-    for nrun in range(1, options['maxruns']+1):
-        se, opt = minimize(se, fock, hf.nelec, buf=buf, x0=se.chempot, 
-                           tol=options['netol'], jac=options['jac'], 
-                           method=options['method'])
+    for nrun in range(1, maxruns+1):
+        se, opt = minimize(se, fock, hf.nelec, buf=buf, x0=se.chempot, tol=tol, jac=jac, method=method)
 
-        for niter in range(1, options['maxiter']+1):
+        for niter in range(1, maxiter+1):
             w, v, se.chempot, error = diag_fock_ext(se, fock, hf.nelec)
 
             c_occ = v[:nphys, w < se.chempot]
@@ -124,15 +129,14 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
             rdm_prev = rdm.copy()
 
-        log.write('%6d %12.6g %6d %12.6g %12.6f\n' % 
-                  (nrun, rmsd, niter, error, se.chempot), options['verbose'])
+        log.write('%6d %12.6g %6d %12.6g %12.6f\n' % (nrun, rmsd, niter, error, se.chempot), verbose)
 
-        if rmsd < options['dtol'] and abs(error) < options['netol']:
+        if rmsd < dtol and abs(error) < tol:
             break
 
-    converged = rmsd < options['dtol'] and abs(error) < options['netol']
+    converged = rmsd < dtol and abs(error) < tol
 
-    log.write('%52s\n' % ('-'*52), options['verbose'])
+    log.write('----------------------------------------------------\n', verbose)
 
     return se, rdm, converged
 
@@ -184,40 +188,43 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
     options = _set_options(**kwargs)
 
-    diis = util.DIIS(space=options['diis_space'])
+    diis_space = options['diis_space']
+    tol = options['netol']
+    dtol = options['dtol']
+    verbose = options['verbose']
+    maxiter = options['maxiter']
+    maxruns = options['maxruns']
+    frozen = options['frozen']
+    method = options['method']
+    jac = options['jac']
+
+    diis = util.DIIS(space=diis_space)
     fock = hf.get_fock(rdm, basis='mo')
     nphys = se[0].nphys
 
-    frozen = options['frozen']
     if not isinstance(frozen, tuple):
         frozen = (frozen, 0)
     act = slice(frozen[0], fock.shape[-1]-frozen[1])
     nelec_act = (hf.nalph - frozen[0], hf.nbeta - frozen[0])
+
     bufa = np.zeros((nphys + se[0].naux,)*2, dtype=types.float64)
     bufb = np.zeros((nphys + se[1].naux,)*2, dtype=types.float64)
 
-
-    log.write('%65s\n' % ('-'*65), options['verbose'])
-    log.write('Fock loop'.center(65) + '\n', options['verbose'])
-    log.write('%6s %12s %6s %12s %12s %12s\n' % ('loop', 'RMSD', 'niter',
-              'nelec error', 'chempot(a)', 'chempot(b)'), options['verbose'])
-    log.write('%6s %12s %6s %12s %12s %12s\n' % ('-'*6, '-'*12, '-'*6, '-'*12,
-              '-'*12, '-'*12), options['verbose'])
+    log.write('-----------------------------------------------------------------\n', verbose)
+    log.write('                            Fock loop                            \n', verbose)
+    log.write('  loop         RMSD  niter  nelec error   chempot(a)   chempot(b)\n', verbose)
+    log.write('------ ------------ ------ ------------ ------------ ------------\n', verbose)
 
 
-    for nrun in range(1, options['maxruns']+1):
-        se_a, res_a = minimize(se[0], fock[0], hf.nalph, x0=se[0].chempot, 
-                               tol=options['netol'], occupancy=1.0, buf=bufa,
-                               method=options['method'], jac=options['jac'])
-        se_b, res_b = minimize(se[1], fock[1], hf.nbeta, x0=se[1].chempot,
-                               tol=options['netol'], occupancy=1.0, buf=bufb,
-                               method=options['method'], jac=options['jac'])
+    for nrun in range(1, maxruns+1):
+        se_a, res_a = minimize(se[0], fock[0], hf.nalph, x0=se[0].chempot, tol=tol, occupancy=1, 
+                               buf=bufa, method=method, jac=jac)
+        se_b, res_b = minimize(se[1], fock[1], hf.nbeta, x0=se[1].chempot, tol=tol, occupancy=1, 
+                               buf=bufb, method=method, jac=jac)
 
-        for niter in range(1, options['maxiter']+1):
-            w_a, v_a, se[0].chempot, error_a = \
-                    diag_fock_ext(se[0], fock[0], hf.nalph, occupancy=1.0)
-            w_b, v_b, se[1].chempot, error_b = \
-                    diag_fock_ext(se[1], fock[1], hf.nbeta, occupancy=1.0)
+        for niter in range(1, maxiter+1):
+            w_a, v_a, se[0].chempot, error_a = diag_fock_ext(se[0], fock[0], hf.nalph, occupancy=1)
+            w_b, v_b, se[1].chempot, error_b = diag_fock_ext(se[1], fock[1], hf.nbeta, occupancy=1)
             error = (error_a, error_b)
 
             c_occ_a = v_a[:nphys, w_a < se[0].chempot]
@@ -234,25 +241,21 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
                 rmsd = np.sqrt(np.sum((rdm - rdm_prev)**2))
 
-                if rmsd < options['dtol']:
+                if rmsd < dtol:
                     break
 
             rdm_prev = rdm.copy()
 
-        log.write('%6d %12.6g %6d %12.6g %12.6f %12.6f\n' % (nrun, rmsd, niter, 
-                  max(error), se[0].chempot, se[1].chempot), options['verbose'])
+        log.write('%6d %12.6g %6d %12.6g %12.6f %12.6f\n' 
+                  % (nrun, rmsd, niter, max(error), se[0].chempot, se[1].chempot), verbose)
 
         error_max = max(abs(error[0]), abs(error[1]))
 
-        if rmsd < options['dtol'] and error_max < options['netol']:
+        if rmsd < dtol and error_max < tol:
             break
 
-    converged = rmsd < options['dtol'] and error_max < options['netol']
+    converged = rmsd < dtol and error_max < tol
 
-    log.write('%65s\n' % ('-'*65), options['verbose'])
+    log.write('-----------------------------------------------------------------\n', verbose)
 
     return se, rdm, converged
-    
-
-if __name__ == '__main__':
-    pass

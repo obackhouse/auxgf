@@ -171,7 +171,6 @@ def ao2mo(*args):
     # spin 3d tensor with spin coefficients: (4, 3, 3)
     if ndim == (4, 3, 3):
         s, ci, cj = args
-        print(s.shape, ci.shape, cj.shape)
 
         assert s.shape[0] == ci.shape[0] == cj.shape[0]
         nspin = s.shape[0]
@@ -193,8 +192,7 @@ def ao2mo(*args):
         na = ci.shape[0]
         nb = ck.shape[0]
 
-        m = [[ao2mo_4d(s, ci[i], cj[i], ck[j], cl[j]) 
-              for j in range(nb)] for i in range(na)]
+        m = [[ao2mo_4d(s, ci[i], cj[i], ck[j], cl[j]) for j in range(nb)] for i in range(na)]
         return np.stack(m)
 
     # spin 4d tensor with spin coefficients: (6, 3, 3, 3, 3)
@@ -206,13 +204,12 @@ def ao2mo(*args):
         na = s.shape[0]
         nb = s.shape[1]
 
-        m = [[ao2mo_4d(s[i,j], ci[i], cj[i], ck[j], cl[j]) 
-              for j in range(nb)] for i in range(na)]
+        m = [[ao2mo_4d(s[i,j], ci[i], cj[i], ck[j], cl[j]) for j in range(nb)] for i in range(na)]
 
         return np.stack(m)
 
-    raise ValueError('Inputs with dimensions %s not supported for generalized'
-                     ' ao2mo function.' % repr(ndim))
+    raise ValueError('Inputs with dimensions %s not supported for generalized ao2mo function.' 
+                     % repr(ndim))
 
 
 def mo2qo_4d(array, c_a, c_b, c_c):

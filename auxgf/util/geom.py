@@ -23,8 +23,7 @@ def ring(label, num, d):
 
     from pyscf.tools import ring as _ring
 
-    atoms = [(label, np.asarray(x, dtype=types.float64)) 
-             for x in _ring.make(num, d)]
+    atoms = [(label, np.asarray(x, dtype=types.float64)) for x in _ring.make(num, d)]
 
     return atoms
 

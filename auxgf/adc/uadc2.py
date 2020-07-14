@@ -209,8 +209,7 @@ class UADC2(util.AuxMethod):
                 occb, occa, virb, vira = self._get_slices()
 
             fock = self.get_fock()[a][occa,occa]
-            se[a] = self.se[a].compress(fock, self.nmom, 
-                                        **self.options['_merge'])
+            se[a] = self.se[a].compress(fock, self.nmom, **self.options['_merge'])
 
         self.se = tuple(se)
 
@@ -243,11 +242,9 @@ class UADC2(util.AuxMethod):
 
         log.write('E(mp2) = %.12f\n' % self.e_mp2, self.verbose)
         e_excite = self.ip[0] if self.method == 'ip' else self.ea[0]
-        log.write('E(%s)  = %.12f\n' % (self.method, e_excite), 
-                                       self.verbose)
+        log.write('E(%s)  = %.12f\n' % (self.method, e_excite), self.verbose)
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

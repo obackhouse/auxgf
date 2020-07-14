@@ -27,8 +27,7 @@ def _get_qr_function(method='cholesky'):
     elif method == 'numpy':
         qr = partial(util.qr, mode='reduced')
     elif method == 'scipy':
-        qr = partial(scipy.linalg.qr, mode='economic', 
-                     overwrite_a=False, check_finite=False)
+        qr = partial(scipy.linalg.qr, mode='economic', overwrite_a=False, check_finite=False)
     elif method == 'unsafe':
         qr = util.qr_unsafe
     else:
@@ -56,8 +55,7 @@ def build_block_tridiag(m, b):
     k = len(b)
 
     if len(m) != k+1:
-        raise ValueError('There should be one more on-diagonal block '
-                         'than off-diagonal blocks.')
+        raise ValueError('There should be one more on-diagonal block than off-diagonal blocks.')
 
     z = np.zeros(m[0].shape, dtype=types.float64)
 

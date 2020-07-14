@@ -184,8 +184,7 @@ class RADC2(util.AuxMethod):
         eo = self.hf.e[occ]
         ev = self.hf.e[vir]
 
-        e, v = aux.build_rmp2_part(eo, ev, eri_ooov,
-                                   **self.options['_build'])
+        e, v = aux.build_rmp2_part(eo, ev, eri_ooov, **self.options['_build'])
 
         self.se = aux.Aux(e, v)#, chempot=self.hf.chempot)
 
@@ -223,11 +222,9 @@ class RADC2(util.AuxMethod):
         self.diagonalise()
 
         log.write('E(mp2) = %.12f\n' % self.e_mp2, self.verbose)
-        log.write('E(%s)  = %.12f\n' % (self.method, self.e_excite[0]), 
-                                       self.verbose)
+        log.write('E(%s)  = %.12f\n' % (self.method, self.e_excite[0]), self.verbose)
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

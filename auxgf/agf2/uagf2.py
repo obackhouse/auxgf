@@ -158,22 +158,23 @@ class UAGF2(util.AuxMethod):
 
     @util.record_time('build')
     def build(self):
+        build_opts = self.options['_build']
+        etol = self.options['etol']
+        wtol = self.options['wtol']
+        use_merge = self.options['use_merge']
+
         self._se_prev = (self.se[0].copy(), self.se[1].copy())
         eri_act = _active(self, self.eri, 2 if self.hf.with_df else 4)
         fock_act = _active(self, self.get_fock(), 2)
 
         if self.hf.with_df:
-            sea, seb = aux.build_dfmp2_iter(self.se, fock_act, eri_act,
-                                            **self.options['_build'])
+            sea, seb = aux.build_dfmp2_iter(self.se, fock_act, eri_act, **build_opts)
         else:
-            sea, seb = aux.build_mp2_iter(self.se, fock_act, eri_act,
-                                          **self.options['_build'])
+            sea, seb = aux.build_mp2_iter(self.se, fock_act, eri_act, **build_opts)
 
-        if self.options['use_merge']:
-            sea = sea.merge(etol=self.options['etol'], 
-                            wtol=self.options['wtol'])
-            seb = seb.merge(etol=self.options['etol'], 
-                            wtol=self.options['wtol'])
+        if use_merge:
+            sea = sea.merge(etol=etol, wtol=wtol)
+            seb = seb.merge(etol=etol, wtol=wtol)
 
         self.se = (sea, seb)
 
@@ -183,65 +184,63 @@ class UAGF2(util.AuxMethod):
 
     @util.record_time('fock')
     def fock_loop(self):
-        se, rdm1, converged = fock_loop_uhf(self.se, self.hf, self.rdm1,
-                                            **self.options['_fock_loop'])
+        fock_opts = self.options['_fock_loop']
+
+        se, rdm1, converged = fock_loop_uhf(self.se, self.hf, self.rdm1, **fock_opts)
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
-            log.write('Chemical potential (alpha) = %.6f\n' % self.chempot[0],
-                      self.verbose)
-            log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1],
-                      self.verbose)
+            log.write('Chemical potential (alpha) = %.6f\n' % self.chempot[0], self.verbose)
+            log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1], self.verbose)
         else:
             log.write('Fock loop did not converge.\n', self.verbose)
-            log.write('Chemical potential (alpha) = %.6f\n' % self.chempot[0],
-                      self.verbose)
-            log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1],
-                      self.verbose)
+            log.write('Chemical potential (alpha) = %.6f\n' % self.chempot[0], self.verbose)
+            log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1], self.verbose)
 
         fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
         e_qmo_a, v_qmo_a = util.eigh(se[0].as_hamiltonian(fock_act[0]))
         e_qmo_b, v_qmo_b = util.eigh(se[1].as_hamiltonian(fock_act[1]))
-        self.gf = (se[0].new(e_qmo_a, v_qmo_a[:self.nphys]),
+        self.gf = (se[0].new(e_qmo_a, v_qmo_a[:self.nphys]), 
                    se[1].new(e_qmo_b, v_qmo_b[:self.nphys]))
 
         self.se = se
         self.rdm1 = rdm1
 
-        log.write('HOQMO (alpha) = %.6f\n' % 
-                  util.amax(e_qmo_a[e_qmo_a < self.chempot[0]]), self.verbose)
-        log.write('HOQMO (beta)  = %.6f\n' % 
-                  util.amax(e_qmo_b[e_qmo_b < self.chempot[1]]), self.verbose)
-        log.write('LUQMO (alpha) = %.6f\n' % 
-                  util.amin(e_qmo_a[e_qmo_a >= self.chempot[0]]), self.verbose)
-        log.write('LUQMO (beta)  = %.6f\n' % 
-                  util.amin(e_qmo_b[e_qmo_b >= self.chempot[1]]), self.verbose)
+        e_hoqmo_a = util.amax(e_qmo_a[e_qmo_a < self.chempot[0]])
+        e_hoqmo_b = util.amax(e_qmo_b[e_qmo_b < self.chempot[1]])
+        e_luqmo_a = util.amin(e_qmo_a[e_qmo_a >= self.chempot[0]])
+        e_luqmo_b = util.amin(e_qmo_b[e_qmo_b >= self.chempot[1]])
+
+        log.write('HOQMO (alpha) = %.6f\n' % e_hoqmo_a, self.verbose)
+        log.write('HOQMO (beta)  = %.6f\n' % e_hoqmo_b, self.verbose)
+        log.write('LUQMO (alpha) = %.6f\n' % e_luqmo_a, self.verbose)
+        log.write('LUQMO (beta)  = %.6f\n' % e_luqmo_b, self.verbose)
         log.array(self.rdm1[0], 'Density matrix (physical,alpha)', self.verbose)
         log.array(self.rdm1[1], 'Density matrix (physical,beta)', self.verbose)
 
 
     @util.record_time('merge')
     def merge(self):
+        etol = self.options['etol']
+        wtol = self.options['wtol']
+        use_merge = self.options['use_merge']
+        method=self.options['bath_type']
+        beta=self.options['bath_beta']
+        qr=self.options['qr']
+
         nmom_gf, nmom_se = self.nmom
 
         if nmom_gf is None and nmom_se is None:
             return
 
-        fock_act = _active(self, self.get_fock(), 2)
-        sea = self.se[0].compress(fock_act[0], self.nmom,
-                                  method=self.options['bath_type'],
-                                  beta=self.options['bath_beta'],
-                                  qr=self.options['qr'])
-        seb = self.se[1].compress(fock_act[1], self.nmom,
-                                  method=self.options['bath_type'],
-                                  beta=self.options['bath_beta'],
-                                  qr=self.options['qr'])
+        fock = _active(self, self.get_fock(), 2)
 
-        if self.options['use_merge']:
-            sea = sea.merge(etol=self.options['etol'],
-                            wtol=self.options['wtol'])
-            seb = seb.merge(etol=self.options['etol'],
-                            wtol=self.options['wtol'])
+        sea = self.se[0].compress(fock[0], self.nmom, method=method, beta=beta, qr=qr)
+        seb = self.se[1].compress(fock[1], self.nmom, method=method, beta=beta, qr=qr)
+
+        if use_merge:
+            sea = sea.merge(etol=etol, wtol=wtol)
+            seb = seb.merge(etol=etol, wtol=wtol)
 
         self.se = (sea, seb)
 
@@ -250,14 +249,17 @@ class UAGF2(util.AuxMethod):
 
 
     def damp(self):
-        if self.options['damping'] == 0.0:
+        damping = self.options['damping']
+        delay_damping = self.options['delay_damping']
+
+        if damping == 0.0:
             return
 
-        if self.iteration <= self.options['delay_damping']:
+        if self.iteration <= delay_damping:
             return
 
-        fcurr = np.sqrt(1.0 - self.options['damping'])
-        fprev = np.sqrt(self.options['damping'])
+        fcurr = np.sqrt(1.0 - damping)
+        fprev = np.sqrt(damping)
 
         sea, seb = self.se
         sea_prev, seb_prev = self._se_prev
@@ -339,7 +341,10 @@ class UAGF2(util.AuxMethod):
 
 
     def run(self):
-        for self.iteration in range(1, self.options['maxiter']+1):
+        maxiter = self.options['maxiter']
+        etol = self.options['etol']
+
+        for self.iteration in range(1, maxiter+1):
             log.iteration(self.iteration, self.verbose)
 
             self.fock_loop()
@@ -349,22 +354,20 @@ class UAGF2(util.AuxMethod):
             self.energy()
 
             if self.iteration > 1:
-                e_dif = abs(self._energies['tot'][-2] - \
-                            self._energies['tot'][-1])
+                e_dif = abs(self._energies['tot'][-2] - self._energies['tot'][-1])
 
-                if e_dif < self.options['etol'] and self.converged:
+                if e_dif < etol and self.converged:
                     break
 
-                self.converged = e_dif < self.options['etol']
+                self.converged = e_dif < etol
 
         if self.converged:
-            log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
-                      self.iteration, self.verbose)
+            log.write('\nAuxiliary GF2 converged after %d iterations.\n' 
+                      % self.iteration, self.verbose)
         else:
             log.write('\nAuxiliary GF2 failed to converge.\n', self.verbose)
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

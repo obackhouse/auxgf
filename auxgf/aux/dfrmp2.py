@@ -119,7 +119,7 @@ def build_dfrmp2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     return e, v
 
 
-def build_dfrmp2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfrmp2(e, qpx, qyz, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference.
 
@@ -149,10 +149,8 @@ def build_dfrmp2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
 
     eo, ev, ixq, qja, axq, qbi = _parse_rhf(e, qpx, qyz, chempot)
 
-    eija, vija = build_dfrmp2_part(eo, ev, ixq, qja, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
-    eabi, vabi = build_dfrmp2_part(ev, eo, axq, qbi, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_dfrmp2_part(eo, ev, ixq, qja, **kwargs) 
+    eabi, vabi = build_dfrmp2_part(ev, eo, axq, qbi, **kwargs) 
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -162,7 +160,7 @@ def build_dfrmp2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     return poles
 
 
-def build_dfrmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfrmp2_iter(se, h_phys, eri_mo, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -206,15 +204,13 @@ def build_dfrmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1
     ixq = util.ao2mo_df(eri_mo, co, eye)
     ixq = _reshape_internal(ixq, (-1, nocc*nphys), (0,1), (nocc, nphys, -1))
     qja = util.ao2mo_df(eri_mo, co, cv)
-    eija, vija = build_dfrmp2_part(eo, ev, ixq, qja, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_dfrmp2_part(eo, ev, ixq, qja, **kwargs)
     del ixq, qja
 
     axq = util.ao2mo_df(eri_mo, cv, eye)
     axq = _reshape_internal(axq, (-1, nvir*nphys), (0,1), (nvir, nphys, -1))
     qbi = util.ao2mo_df(eri_mo, cv, co)
-    eabi, vabi = build_dfrmp2_part(ev, eo, axq, qbi, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
+    eabi, vabi = build_dfrmp2_part(ev, eo, axq, qbi, **kwargs)
     del axq, qbi
 
     e = np.concatenate((eija, eabi), axis=0)
@@ -294,7 +290,7 @@ def build_dfrmp2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
             yield ec, vc
 
 
-def build_dfrmp2_direct(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfrmp2_direct(e, qpx, qyz, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -324,8 +320,6 @@ def build_dfrmp2_direct(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_
     '''
 
     eo, ev, ixq, qja, axq, qbi = _parse_rhf(e, qpx, qyz, chempot)
-
-    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
 
     for e,v in build_dfrmp2_part_direct(eo, ev, ixq, qja, **kwargs):
         yield aux.Aux(e, v, chempot=chempot)
@@ -432,9 +426,7 @@ def build_dfrmp2_se_direct(e, qpx, qyz, grid, chempot=0.0, ordering='feynman'):
 
     eo, ev, ixq, qja, axq, qbi = _parse_rhf(e, qpx, qyz, chempot)
 
-    se  = build_dfrmp2_part_se_direct(eo, ev, ixq, qja, grid, chempot=chempot,
-                                      ordering=ordering)
-    se += build_dfrmp2_part_se_direct(ev, eo, axq, qbi, grid, chempot=chempot, 
-                                      ordering=ordering)
+    se  = build_dfrmp2_part_se_direct(eo, ev, ixq, qja, grid, chempot=chempot, ordering=ordering)
+    se += build_dfrmp2_part_se_direct(ev, eo, axq, qbi, grid, chempot=chempot, ordering=ordering)
 
     return se

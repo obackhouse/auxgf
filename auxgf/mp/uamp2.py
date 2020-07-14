@@ -108,12 +108,10 @@ class UAMP2(util.AuxMethod):
     @util.record_time('build')
     def build(self):
         eri = self.eri
-        sea = aux.build_ump2(self.hf.e, self.eri[0], 
-                             **self.options['_build'],
-                             chempot=self.chempot[0])
-        seb = aux.build_ump2(self.hf.e[::-1], self.eri[1][::-1],
-                             **self.options['_build'],
-                             chempot=self.chempot[1])
+        cpt_a, cpt_b = self.chempot
+        s = slice(None, None, -1)
+        sea = aux.build_ump2(self.hf.e, self.eri[0], chempot=cpt_a, **self.options['_build'])
+        seb = aux.build_ump2(self.hf.e[s], self.eri[1][s], chempot=cpt_b, **self.options['_build'])
 
         self.se = (sea, seb)
 
@@ -158,8 +156,7 @@ class UAMP2(util.AuxMethod):
         self.merge()
         self.energy_mp2()
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

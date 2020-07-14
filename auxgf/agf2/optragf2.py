@@ -151,8 +151,7 @@ class OptRAGF2(util.AuxMethod):
         self.options = _set_options(self.options, **kwargs)
 
         if mpi.mpi is None:
-            log.warn('No MPI4Py installation detected, OptRAGF2 will '
-                     'therefore run in serial.')
+            log.warn('No MPI4Py installation detected, OptRAGF2 will therefore run in serial.')
 
         self.setup()
 
@@ -216,8 +215,7 @@ class OptRAGF2(util.AuxMethod):
                 out = np.zeros((naux, i*j), dtype=types.float64)
 
         for s in mpi.get_blocks(naux, maxblk, all_ranks=False):
-            out[s] = _ao2mo.nr_e2(eri[s], cij, sij, out=out[s], 
-                                  aosym=sym_in, mosym=sym_out)
+            out[s] = _ao2mo.nr_e2(eri[s], cij, sij, out=out[s], aosym=sym_in, mosym=sym_out)
 
         out = mpi.reduce(out)
 
@@ -237,8 +235,7 @@ class OptRAGF2(util.AuxMethod):
         for i in range(mpi.rank, nocc, mpi.size):
             xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
             xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), 
-                                    (nphys, nocc*nvir))
+            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
             x = util.dgemm(xja, xja.T, alpha=2, beta=1, c=x)
             x = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
@@ -269,8 +266,7 @@ class OptRAGF2(util.AuxMethod):
             qa = qja[:,i*nvir:(i+1)*nvir]
 
             xja = np.dot(ixq[:i*nphys], qa)
-            xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), 
-                                    (nphys, i*nvir))
+            xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
             xia = np.dot(xq, qja[:,:i*nvir])
             xa = np.dot(xq, qa)
 
@@ -352,20 +348,19 @@ class OptRAGF2(util.AuxMethod):
 
     @util.record_time('fock')
     def fock_loop(self):
-        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1,
-                                            **self.options['_fock_loop'])
+        fock_opts = self.options['_fock_loop']
+
+        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1, **fock_opts)
 
         w, v = self.se.eig(self.get_fock())
         self.gf = self.se.new(w, v[:self.nphys])
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
-            log.write('Chemical potential = %.6f\n' % self.chempot,
-                      self.verbose)
+            log.write('Chemical potential = %.6f\n' % self.chempot, self.verbose)
         else:
             log.write('Fock loop did not converge.\n', self.verbose)
-            log.write('Chemical potential = %.6f\n' % self.chempot,
-                      self.verbose)
+            log.write('Chemical potential = %.6f\n' % self.chempot, self.verbose)
 
 
     @util.record_time('energy')
@@ -441,8 +436,8 @@ class OptRAGF2(util.AuxMethod):
         k = np.zeros((nphys, nphys), dtype=types.float64)
 
         rdm1_tril = lib.pack_tril(rdm1 + np.tril(rdm1, k=-1))
-        args = (ctypes.c_int(nphys), (ctypes.c_int*4)(0, nphys, 0, nphys),
-                lib.c_null_ptr(), ctypes.c_int(0))
+        c_int = ctypes.c_int
+        args = (c_int(nphys), (c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), c_int(0))
         buf = np.empty((2, maxblk, nphys, nphys))
 
         for s in mpi.get_blocks(naux, maxblk, all_ranks=False):
@@ -453,12 +448,10 @@ class OptRAGF2(util.AuxMethod):
             j += np.dot(rho, eri1)
 
             buf1 = buf[0,:naux_block]
-            _fdrv(to_ptr(buf1), to_ptr(eri1), to_ptr(rdm1), 
-                  ctypes.c_int(naux_block), *args)
+            _fdrv(to_ptr(buf1), to_ptr(eri1), to_ptr(rdm1), c_int(naux_block), *args)
 
             buf2 = lib.unpack_tril(eri1, out=buf[1])
-            k = util.dgemm(buf1.reshape((-1, nphys)).T, 
-                           buf2.reshape((-1, nphys)), c=k, beta=1)
+            k = util.dgemm(buf1.reshape((-1, nphys)).T, buf2.reshape((-1, nphys)), c=k, beta=1)
 
         j = mpi.reduce(j)
         k = mpi.reduce(k)
@@ -479,7 +472,10 @@ class OptRAGF2(util.AuxMethod):
 
 
     def run(self):
-        for self.iteration in range(1, self.options['maxiter']+1):
+        maxiter = self.options['maxiter']
+        etol = self.options['etol']
+
+        for self.iteration in range(1, maxiter+1):
             log.iteration(self.iteration, self.verbose)
 
             self.fock_loop()
@@ -487,22 +483,20 @@ class OptRAGF2(util.AuxMethod):
             self.energy()
 
             if self.iteration > 1:
-                e_dif = abs(self._energies['tot'][-2] - \
-                            self._energies['tot'][-1])
+                e_dif = abs(self._energies['tot'][-2] - self._energies['tot'][-1])
 
-                if e_dif < self.options['etol'] and self.converged:
+                if e_dif < etol and self.converged:
                     break
 
-                self.converged = e_dif < self.options['etol']
+                self.converged = e_dif < etol
 
         if self.converged:
-            log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
-                      self.iteration, self.verbose)
+            log.write('\nAuxiliary GF2 converged after %d iterations.\n' 
+                      % self.iteration, self.verbose)
         else:
             log.write('\nAuxiliary GF2 failed to converge.\n', self.verbose)
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

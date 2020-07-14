@@ -24,15 +24,12 @@ einsum = 'tblis'  # 'numpy', 'pyscf', 'tblis'
     numpy.
 '''
 
-numpy_einsum = functools.partial(np.einsum, casting='safe',
-                                 order='C', optimize=True)
+numpy_einsum = functools.partial(np.einsum, casting='safe', order='C', optimize=True)
 
-pyscf_einsum = functools.partial(pyscf_einsum, casting='safe',
-                                 order='C', optimize=True)
+pyscf_einsum = functools.partial(pyscf_einsum, casting='safe', order='C', optimize=True)
 
 if tblis_einsum is not None:
-    tblis_einsum = functools.partial(tblis_einsum, casting='safe',
-                                     order='C', optimize=True)
+    tblis_einsum = functools.partial(tblis_einsum, casting='safe', order='C', optimize=True)
 
 def _tblis_einsum(key, *args, **kwargs):
     # Does tblis_einsum not support Ellipsis in the key?
@@ -128,8 +125,7 @@ def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
 
     c, tc = _reorder_fortran(c)
 
-    c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, 
-                   trans_a=not tb, trans_b=not ta)
+    c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, trans_a=not tb, trans_b=not ta)
 
     c, tc = _reorder_c(c)
 
@@ -235,13 +231,10 @@ def block_diag(arrays):
     for i in range(1, len(arrays)):
         array_next = arrays[i]
 
-        zeros_ur = np.zeros((array.shape[0], array_next.shape[1]),
-                            dtype=array.dtype)
-        zeros_bl = np.zeros((array_next.shape[0], array.shape[1]),
-                            dtype=array.dtype)
+        zeros_ur = np.zeros((array.shape[0], array_next.shape[1]), dtype=array.dtype)
+        zeros_bl = np.zeros((array_next.shape[0], array.shape[1]), dtype=array.dtype)
 
-        array = np.block([[array, zeros_ur],
-                          [zeros_bl, array_next]])
+        array = np.block([[array, zeros_ur], [zeros_bl, array_next]])
 
     return array
 
@@ -587,17 +580,16 @@ def dirsum(key, *arrays): # pragma: no cover
 
     dims_disagree = [x.ndim != len(k) for x,k in zip(arrays, kin)]
     if any(dims_disagree):
-        raise ValueError('Number of dimensions in key and array do not agree '
-                         'for argument %d.' % (dims_agree.index(True)))
+        raise ValueError('Number of dimensions in key and array do not agree for argument %d.' 
+                         % (dims_agree.index(True)))
     
     if set(kin_all) != set(kout):
-        raise ValueError('Input keys %s not the same as output keys %s.' %
-                         (repr(kin_all), repr(kout)))
+        raise ValueError('Input keys %s not the same as output keys %s.' 
+                         % (repr(kin_all), repr(kout)))
 
     repeated_keys = [len(set(x)) != len(x) for x in kin+kout]
     if any(repeated_keys):
-        raise ValueError('Repeated keys not supported (argument %d).' %
-                         repeated_keys.index(True))
+        raise ValueError('Repeated keys not supported (argument %d).' % repeated_keys.index(True))
 
     for kin_ in set(kin_all):
         shapes_ = [s for s,k in zip(shapes_all, kin_all) if k == kin_]

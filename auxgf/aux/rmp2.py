@@ -183,7 +183,7 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return e, v
 
 
-def build_rmp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_rmp2(e, eri, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference.
 
@@ -211,10 +211,8 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
 
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
 
-    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol, 
-                                 ss_factor=ss_factor, os_factor=os_factor)
-    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol, 
-                                 ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_rmp2_part(eo, ev, xija, **kwargs)
+    eabi, vabi = build_rmp2_part(ev, eo, xabi, **kwargs)
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -224,7 +222,7 @@ def build_rmp2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return poles
 
 
-def build_rmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_iter(se, h_phys, eri_mo, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -261,13 +259,11 @@ def build_rmp2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     cv = c[:se.nphys,v]
 
     xija = util.mo2qo(eri_mo, co, co, cv)
-    eija, vija = build_rmp2_part(eo, ev, xija, wtol=wtol,
-                                 ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_rmp2_part(eo, ev, xija, **kwargs)
     del xija
 
     xabi = util.mo2qo(eri_mo, cv, cv, co)
-    eabi, vabi = build_rmp2_part(ev, eo, xabi, wtol=wtol,
-                                 ss_factor=ss_factor, os_factor=os_factor)
+    eabi, vabi = build_rmp2_part(ev, eo, xabi, **kwargs)
     del xabi
 
     e = np.concatenate((eija, eabi), axis=0)
@@ -336,7 +332,7 @@ def build_rmp2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
             yield ec, vc
 
 
-def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_rmp2_direct(e, eri, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for a restricted reference. Uses a generator which
         iterates over blocks.
@@ -364,8 +360,6 @@ def build_rmp2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     '''
     
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
-
-    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
 
     for e,v in build_rmp2_part_direct(eo, ev, xija, **kwargs):
         yield aux.Aux(e, v, chempot=chempot)
@@ -462,9 +456,7 @@ def build_rmp2_se_direct(e, eri, grid, chempot=0.0, ordering='feynman'):
 
     eo, ev, xija, xabi = _parse_rhf(e, eri, chempot)
 
-    se  = build_rmp2_part_se_direct(eo, ev, xija, grid, chempot=chempot, 
-                                    ordering=ordering)
-    se += build_rmp2_part_se_direct(ev, eo, xabi, grid, chempot=chempot, 
-                                    ordering=ordering)
+    se  = build_rmp2_part_se_direct(eo, ev, xija, grid, chempot=chempot, ordering=ordering)
+    se += build_rmp2_part_se_direct(ev, eo, xabi, grid, chempot=chempot, ordering=ordering)
 
     return se

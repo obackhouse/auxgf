@@ -137,8 +137,7 @@ class RAMP2(util.AuxMethod):
     @util.record_time('build')
     def build(self):
         eri = self.eri
-        self.se = aux.build_rmp2(self.hf.e, self.eri, **self.options['_build'],
-                                 chempot=self.chempot)
+        self.se = aux.build_rmp2(self.hf.e, self.eri, chempot=chempot, **self.options['_build'])
 
         log.write('naux (build) = %d\n' % self.naux, self.verbose)
 
@@ -150,8 +149,7 @@ class RAMP2(util.AuxMethod):
         if nmom_gf is None and nmom_se is None:
             return
 
-        self.se = self.se.compress(self.get_fock(), self.nmom, 
-                                   **self.options['_merge'])
+        self.se = self.se.compress(self.get_fock(), self.nmom, **self.options['_merge'])
 
         log.write('naux (merge) = %d\n' % self.naux, self.verbose)
 
@@ -171,8 +169,7 @@ class RAMP2(util.AuxMethod):
         self.merge()
         self.energy_mp2()
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

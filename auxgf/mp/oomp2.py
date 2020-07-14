@@ -45,8 +45,7 @@ class OOMP2:
         self.eri_mo = util.ao2mo(self.eri_ao, self.c, self.c, self.c, self.c)
 
     def run(self):
-        t_amp = np.zeros((self.nvir, self.nvir, self.nocc, self.nocc),
-                         dtype=types.float64)
+        t_amp = np.zeros((self.nvir, self.nvir, self.nocc, self.nocc), dtype=types.float64)
 
         o = slice(None, self.nocc)
         v = slice(self.nocc, None)
@@ -105,8 +104,7 @@ class OOMP2:
 
             fnr  = util.einsum('pr,rq->pq', self.h1e_mo, opdm)
             fnr += util.einsum('prst,stqr->pq', self.eri_mo, tpdm) * 0.5
-            x[v,o] = ((fnr - fnr.T)[v,o]) / \
-                     util.outer_sum([-self.e[v], self.e[o]])
+            x[v,o] = ((fnr - fnr.T)[v,o]) / util.outer_sum([-self.e[v], self.e[o]])
 
             u = expm(x - x.T)
             c = np.dot(self.c, u)

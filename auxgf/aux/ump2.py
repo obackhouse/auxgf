@@ -200,7 +200,7 @@ def build_ump2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return e, v
 
 
-def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_ump2(e, eri, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference.
 
@@ -231,10 +231,8 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
 
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    eija, vija = build_ump2_part(eo, ev, xija, wtol=wtol,
-                                 ss_factor=ss_factor, os_factor=os_factor)
-    eabi, vabi = build_ump2_part(ev, eo, xabi, wtol=wtol,
-                                 ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_ump2_part(eo, ev, xija, **kwargs) 
+    eabi, vabi = build_ump2_part(ev, eo, xabi, **kwargs) 
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -244,7 +242,7 @@ def build_ump2(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     return poles
 
 
-def build_ump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_ump2_iter(se, h_phys, eri_mo, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -298,29 +296,25 @@ def build_ump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     xija_aaaa = util.mo2qo(eri_mo[0,0], co[0], co[0], cv[0])
     xija_aabb = util.mo2qo(eri_mo[0,1], co[0], co[1], cv[1])
     xija = (xija_aaaa, xija_aabb)
-    eija_a, vija_a = build_ump2_part(eo, ev, xija, wtol=wtol,
-                                     ss_factor=ss_factor, os_factor=os_factor)
+    eija_a, vija_a = build_ump2_part(eo, ev, xija, **kwargs)
     del xija
 
     xija_bbbb = util.mo2qo(eri_mo[1,1], co[1], co[1], cv[1])
     xija_bbaa = util.mo2qo(eri_mo[1,0], co[1], co[0], cv[0])
     xija = (xija_bbbb, xija_bbaa)
-    eija_b, vija_b = build_ump2_part(eo[::-1], ev[::-1], xija, wtol=wtol,
-                                     ss_factor=ss_factor, os_factor=os_factor)
+    eija_b, vija_b = build_ump2_part(eo[::-1], ev[::-1], xija, **kwargs)
     del xija
 
     xabi_aaaa = util.mo2qo(eri_mo[0,0], cv[0], cv[0], co[0])
     xabi_aabb = util.mo2qo(eri_mo[0,1], cv[0], cv[1], co[1])
     xabi = (xabi_aaaa, xabi_aabb)
-    eabi_a, vabi_a = build_ump2_part(ev, eo, xabi, wtol=wtol,
-                                     ss_factor=ss_factor, os_factor=os_factor)
+    eabi_a, vabi_a = build_ump2_part(ev, eo, xabi, **kwargs)
     del xabi
 
     xabi_bbbb = util.mo2qo(eri_mo[1,1], cv[1], cv[1], co[1])
     xabi_bbaa = util.mo2qo(eri_mo[1,0], cv[1], cv[0], co[0])
     xabi = (xabi_bbbb, xabi_bbaa)
-    eabi_b, vabi_b = build_ump2_part(ev[::-1], eo[::-1], xabi, wtol=wtol,
-                                     ss_factor=ss_factor, os_factor=os_factor)
+    eabi_b, vabi_b = build_ump2_part(ev[::-1], eo[::-1], xabi, **kwargs)
     del xabi
 
     ea = np.concatenate((eija_a, eabi_a), axis=0)
@@ -394,7 +388,7 @@ def build_ump2_part_direct(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.
             yield eb, vb
 
 
-def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_ump2_direct(e, eri, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference. Uses a generator which
         iterates over blocks.
@@ -430,8 +424,6 @@ def build_ump2_direct(e, eri, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     assert _is_tuple(eri) and len(eri) == 2
     
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
-
-    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
 
     for e,v in build_ump2_part_direct(eo, ev, xija, **kwargs): 
         yield aux.Aux(e, v, chempot=chempot[0])
@@ -539,9 +531,7 @@ def build_ump2_se_direct(e, eri, grid, chempot=0.0, ordering='feynman'):
 
     eo, ev, xija, xabi = _parse_uhf(e, eri, chempot)
 
-    se  = build_ump2_part_se_direct(eo, ev, xija, grid, 
-                                    chempot=chempot, ordering=ordering)
-    se += build_ump2_part_se_direct(ev, eo, xabi, grid, 
-                                    chempot=chempot, ordering=ordering)
+    se  = build_ump2_part_se_direct(eo, ev, xija, grid, chempot=chempot, ordering=ordering)
+    se += build_ump2_part_se_direct(ev, eo, xabi, grid, chempot=chempot, ordering=ordering)
 
     return se

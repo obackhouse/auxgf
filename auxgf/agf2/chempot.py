@@ -44,8 +44,7 @@ def diag_fock_ext(se, fock, nelec, chempot=0.0, occupancy=2.0, buf=None):
     f_ext = se.as_hamiltonian(fock, chempot=chempot, out=buf)
     w, v = util.eigh(f_ext)
 
-    chempot_phys, error = util.chempot.find_chempot(se.nphys, nelec, h=(w,v),
-                                                    occupancy=occupancy)
+    chempot_phys, error = util.chempot.find_chempot(se.nphys, nelec, h=(w,v), occupancy=occupancy)
 
     return w, v, chempot_phys, error
 
@@ -70,8 +69,7 @@ def objective(x, se, fock, nelec, occupancy=2.0, buf=None):
         objective function value, i.e. error in number of electrons
     '''
 
-    w, v, chempot, error = diag_fock_ext(se, fock, nelec, chempot=x, buf=buf,
-                                         occupancy=occupancy)
+    w, v, chempot, error = diag_fock_ext(se, fock, nelec, chempot=x, buf=buf, occupancy=occupancy)
 
     return error**2
 
@@ -97,8 +95,7 @@ def gradient(x, se, fock, nelec, occupancy=2.0, buf=None, return_val=False):
         gradient value
     '''
 
-    w, v, chempot, error = diag_fock_ext(se, fock, nelec, chempot=x, buf=buf,
-                                         occupancy=occupancy)
+    w, v, chempot, error = diag_fock_ext(se, fock, nelec, chempot=x, buf=buf, occupancy=occupancy)
 
     nocc = np.sum(w < chempot)
     phys = slice(None, se.nphys)

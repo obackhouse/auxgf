@@ -115,12 +115,11 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
         xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
-        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), 
-                                   (0,1), (nphys, i*nvira))
+        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
         xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys,-1))
         xja_ab = np.dot(xq_a, qja[1]).reshape((nphys,-1))
 
-        xija_aa = np.dot(ixq[0], qja[0]).reshape((nocca, nphys, nocca, nvira)).swapaxes(0,1) 
+        xija_aa = np.dot(ixq[0], qja[0]).reshape((nocca, nphys, nocca, nvira)).swapaxes(0,1)
         xija_ab = np.dot(ixq[0], qja[1]).reshape((nocca, nphys, noccb, nvirb)).swapaxes(0,1)
         assert np.allclose(xia_aa, xija_aa[:,i,:i].reshape((nphys, -1)))
         assert np.allclose(xja_aa, xija_aa[:,:i,i].reshape((nphys, -1)))
@@ -146,7 +145,7 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     return e, v
 
 
-def build_dfump2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfump2(e, qpx, qyz, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference.
 
@@ -180,10 +179,8 @@ def build_dfump2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
 
     eo, ev, ixq, qja, axq, qbi = _parse_uhf(e, qpx, qyz, chempot)
 
-    eija, vija = build_dfump2_part(eo, ev, ixq, qja, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
-    eabi, vabi = build_dfump2_part(ev, eo, axq, qbi, wtol=wtol,
-                                   ss_factor=ss_factor, os_factor=os_factor)
+    eija, vija = build_dfump2_part(eo, ev, ixq, qja, **kwargs) 
+    eabi, vabi = build_dfump2_part(ev, eo, axq, qbi, **kwargs) 
 
     e = np.concatenate((eija, eabi), axis=0)
     v = np.concatenate((vija, vabi), axis=1)
@@ -193,7 +190,7 @@ def build_dfump2(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=
     return poles
 
 
-def build_dfump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfump2_iter(se, h_phys, eri_mo, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams by iterating the current set of auxiliaries according
         to the eigenvalue form of the Dyson equation.
@@ -252,39 +249,27 @@ def build_dfump2_iter(se, h_phys, eri_mo, wtol=1e-12, ss_factor=1.0, os_factor=1
     eye = np.eye(nphys)
 
     ixq_a = util.ao2mo_df(eri_mo[0], co[0], eye)
-    ixq_a = _reshape_internal(ixq_a, (-1, nocca*nphys), 
-                              (0,1), (nocca, nphys, -1))
+    ixq_a = _reshape_internal(ixq_a, (-1, nocca*nphys), (0,1), (nocca, nphys, -1))
     qja_a = util.ao2mo_df(eri_mo[0], co[0], cv[0])
     qja_b = util.ao2mo_df(eri_mo[1], co[1], cv[1])
-    eija_a, vija_a = build_dfump2_part(eo, ev, (ixq_a,), (qja_a, qja_b), 
-                                       wtol=wtol, ss_factor=ss_factor, 
-                                       os_factor=os_factor)
+    eija_a, vija_a = build_dfump2_part(eo, ev, (ixq_a,), (qja_a, qja_b), **kwargs)
     del ixq_a
 
     ixq_b = util.ao2mo_df(eri_mo[1], co[1], eye)
-    ixq_b = _reshape_internal(ixq_b, (-1, noccb*nphys),
-                              (0,1), (noccb, nphys, -1))
-    eija_b, vija_b = build_dfump2_part(eo[::-1], ev[::-1], (ixq_b,), 
-                                       (qja_b, qja_a), wtol=wtol, 
-                                       ss_factor=ss_factor, os_factor=os_factor)
+    ixq_b = _reshape_internal(ixq_b, (-1, noccb*nphys), (0,1), (noccb, nphys, -1))
+    eija_b, vija_b = build_dfump2_part(eo[::-1], ev[::-1], (ixq_b,), (qja_b, qja_a), **kwargs)
     del ixq_b, qja_a, qja_b
 
     axq_a = util.ao2mo_df(eri_mo[0], cv[0], eye)
-    axq_a = _reshape_internal(axq_a, (-1, nvira*nphys),
-                              (0,1), (nvira, nphys, -1))
+    axq_a = _reshape_internal(axq_a, (-1, nvira*nphys), (0,1), (nvira, nphys, -1))
     qbi_a = util.ao2mo_df(eri_mo[0], cv[0], co[0])
     qbi_b = util.ao2mo_df(eri_mo[1], cv[1], co[1])
-    eabi_a, vabi_a = build_dfump2_part(ev, eo, (axq_a,), (qbi_a, qbi_b), 
-                                       wtol=wtol, ss_factor=ss_factor, 
-                                       os_factor=os_factor)
+    eabi_a, vabi_a = build_dfump2_part(ev, eo, (axq_a,), (qbi_a, qbi_b), **kwargs)
     del axq_a
 
     axq_b = util.ao2mo_df(eri_mo[1], cv[1], eye)
-    axq_b = _reshape_internal(axq_b, (-1, nvirb*nphys),
-                              (0,1), (nvirb, nphys, -1))
-    eabi_b, vabi_b = build_dfump2_part(ev[::-1], eo[::-1], (axq_b,), 
-                                       (qbi_b, qbi_a), wtol=wtol,
-                                       ss_factor=ss_factor, os_factor=os_factor)
+    axq_b = _reshape_internal(axq_b, (-1, nvirb*nphys), (0,1), (nvirb, nphys, -1))
+    eabi_b, vabi_b = build_dfump2_part(ev[::-1], eo[::-1], (axq_b,), (qbi_b, qbi_a), **kwargs)
     del axq_b, qbi_a, qbi_b
 
     ea = np.concatenate((eija_a, eabi_a), axis=0)
@@ -342,8 +327,7 @@ def build_dfump2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
     b_factor = np.sqrt(os_factor)
 
     ixq = (ixq[0].reshape((nocca*nphys, ndf)),)
-    qja = (qja[0].reshape((ndf, nocca*nvira)), 
-           qja[1].reshape((ndf, noccb*nvirb)))
+    qja = (qja[0].reshape((ndf, nocca*nvira)), qja[1].reshape((ndf, noccb*nvirb)))
 
     for i in range(nocca):
         nja_a = i * nvira
@@ -354,8 +338,7 @@ def build_dfump2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
         xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
-        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), 
-                                   (0,1), (nphys, i*nvira))
+        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
         xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys,-1))
         xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[1]).reshape((nphys,-1))
 
@@ -371,7 +354,7 @@ def build_dfump2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
             yield eb, vb
 
 
-def build_dfump2_direct(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
+def build_dfump2_direct(e, qpx, qyz, chempot=0.0, **kwargs):
     ''' Builds a set of auxiliaries representing all (i,j,a) and (a,b,i)
         diagrams for an unrestricted reference. Uses a generator which
         iterates over blocks.
@@ -407,8 +390,6 @@ def build_dfump2_direct(e, qpx, qyz, chempot=0.0, wtol=1e-12, ss_factor=1.0, os_
         chempot = (chempot, chempot)
     
     eo, ev, ixq, qja, axq, qbi = _parse_uhf(e, qpx, qyz, chempot)
-
-    kwargs = dict(ss_factor=ss_factor, os_factor=os_factor, wtol=wtol)
 
     for e,v in build_dfump2_part_direct(eo, ev, ixq, qja, **kwargs): 
         yield aux.Aux(e, v, chempot=chempot[0])
@@ -489,8 +470,7 @@ def build_dfump2_part_se_direct(eo, ev, ixq, qja, grid, chempot=0.0, ordering='f
         vi_a = np.dot(xq_a, qja[0]).reshape((nphys, -1))
         vi_b = np.dot(xq_a, qja[1]).reshape((nphys, -1))
         vip_a = np.dot(ixq[0], qja[0][:,i*nvira:(i+1)*nvira])
-        vip_a = _reshape_internal(vip_a, (nocca, nphys, nvira), 
-                                  (0,1), (nphys, nocca*nvira))
+        vip_a = _reshape_internal(vip_a, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
 
         di_a = 1.0 / util.outer_sum([w, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
         di_b = 1.0 / util.outer_sum([w, -ei_b + get_s(ei_b) * grid.eta * 1.0j])
@@ -535,9 +515,7 @@ def build_dfump2_se_direct(e, qpx, qyz, grid, chempot=0.0, ordering='feynman'):
 
     eo, ev, ixq, qja, axq, qbi = _parse_uhf(e, qpx, qyz, chempot)
 
-    se  = build_dfump2_part_se_direct(eo, ev, ixq, qja, grid, 
-                                      chempot=chempot, ordering=ordering)
-    se += build_dfump2_part_se_direct(ev, eo, axq, qbi, grid, 
-                                      chempot=chempot, ordering=ordering)
+    se  = build_dfump2_part_se_direct(eo, ev, ixq, qja, grid, chempot=chempot, ordering=ordering)
+    se += build_dfump2_part_se_direct(ev, eo, axq, qbi, grid, chempot=chempot, ordering=ordering)
 
     return se

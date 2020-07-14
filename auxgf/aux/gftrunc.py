@@ -64,8 +64,7 @@ def kernel(e, nmom, method='power', beta=100, chempot=0.0):
 
             for i in range(e.size):
                 for n in range(_gfkern._max_kernel_order+1, nmom+1):
-                    f_en[n,i] = scipy.integrate.quad(fn, -beta, 0, 
-                                                     args=(e[i], n, beta))[0]
+                    f_en[n,i] = scipy.integrate.quad(fn, -beta, 0, args=(e[i], n, beta))[0]
 
     return f_en
 
@@ -186,8 +185,7 @@ def run(se, h_phys, nmom, method='power', beta=100, chempot=0.0):
     if method == 'legendre': #FIXME?
         raise NotImplementedError
 
-    p = build_projector(se, h_phys, nmom, method=method, 
-                        beta=beta, chempot=chempot)
+    p = build_projector(se, h_phys, nmom, method=method, beta=beta, chempot=chempot)
 
     h_tilde = np.dot(p.T, se.dot(h_phys, p))
 

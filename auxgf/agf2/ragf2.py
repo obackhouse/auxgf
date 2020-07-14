@@ -197,38 +197,38 @@ class RAGF2(util.AuxMethod):
 
     @util.record_time('build')
     def build(self):
+        build_opts = self.options['_build']
+        etol = self.options['etol']
+        wtol = self.options['wtol']
+        use_merge = self.options['use_merge']
+
         self._se_prev = self.se.copy()
         eri_act = _active(self, self.eri, 2 if self.hf.with_df else 4)
         fock_act = _active(self, self.get_fock(), 2)
 
         if self.hf.with_df:
-            self.se = aux.build_dfmp2_iter(self.se, fock_act, eri_act,
-                                           **self.options['_build'])
+            self.se = aux.build_dfmp2_iter(self.se, fock_act, eri_act, **build_opts)
         else:
-            self.se = aux.build_mp2_iter(self.se, fock_act, eri_act,
-                                         **self.options['_build'])
-
+            self.se = aux.build_mp2_iter(self.se, fock_act, eri_act, **build_opts)
         
-        if self.options['use_merge']:
-            self.se = self.se.merge(etol=self.options['etol'], 
-                                    wtol=self.options['wtol'])
+        if use_merge:
+            self.se = self.se.merge(etol=etol, wtol=wtol)
 
         log.write('naux (build) = %d\n' % self.naux, self.verbose)
 
 
     @util.record_time('fock')
     def fock_loop(self):
-        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1,
-                                            **self.options['_fock_loop'])
+        fock_opts = self.options['_fock_loop']
+
+        se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1, **fock_opts)
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
-            log.write('Chemical potential = %.6f\n' % self.chempot,
-                      self.verbose)
+            log.write('Chemical potential = %.6f\n' % self.chempot, self.verbose)
         else:
             log.write('Fock loop did not converge.\n', self.verbose)
-            log.write('Chemical potential = %.6f\n' % self.chempot,
-                      self.verbose)
+            log.write('Chemical potential = %.6f\n' % self.chempot, self.verbose)
 
         fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
 
@@ -238,41 +238,50 @@ class RAGF2(util.AuxMethod):
         self.se = se
         self.rdm1 = rdm1
 
-        log.write('HOQMO = %.6f\n' % util.amax(e_qmo[e_qmo < self.chempot]),
-                  self.verbose)
-        log.write('LUQMO = %.6f\n' % util.amin(e_qmo[e_qmo >= self.chempot]),
-                  self.verbose)
+        e_hoqmo = util.amax(e_qmo[e_qmo < self.chempot])
+        e_luqmo = util.amin(e_qmo[e_qmo >= self.chempot])
+
+        log.write('HOQMO = %.6f\n' % e_hoqmo, self.verbose)
+        log.write('LUQMO = %.6f\n' % e_luqmo, self.verbose)
         log.array(self.rdm1, 'Density matrix (physical)', self.verbose)
 
 
     @util.record_time('merge')
     def merge(self):
+        etol = self.options['etol']
+        wtol = self.options['wtol']
+        use_merge = self.options['use_merge']
+        method=self.options['bath_type']
+        beta=self.options['bath_beta']
+        qr=self.options['qr']
+
         nmom_gf, nmom_se = self.nmom
 
         if nmom_gf is None and nmom_se is None:
             return
 
-        self.se = self.se.compress(_active(self, self.get_fock(), 2), self.nmom,
-                                   method=self.options['bath_type'],
-                                   beta=self.options['bath_beta'],
-                                   qr=self.options['qr'])
+        fock = _active(self, self.get_fock(), 2)
+
+        self.se = self.se.compress(fock, self.nmom, method=method, beta=beta, qr=qr)
 
         if self.options['use_merge']:
-            self.se = self.se.merge(etol=self.options['etol'],
-                                    wtol=self.options['wtol'])
+            self.se = self.se.merge(etol=etol, wtol=wtol)                                    
 
         log.write('naux (merge) = %d\n' % self.naux, self.verbose)
 
 
     def damp(self):
-        if self.options['damping'] == 0.0:
+        damping = self.options['damping']
+        delay_damping = self.options['delay_damping']
+
+        if damping == 0.0:
             return
 
-        if self.iteration <= self.options['delay_damping']:
+        if self.iteration <= delay_damping:
             return
 
-        fcurr = np.sqrt(1.0 - self.options['damping'])
-        fprev = np.sqrt(self.options['damping'])
+        fcurr = np.sqrt(1.0 - damping)
+        fprev = np.sqrt(damping)
 
         self.se._coup *= fcurr
         self._se_prev._coup *= fprev
@@ -339,7 +348,10 @@ class RAGF2(util.AuxMethod):
 
 
     def run(self):
-        for self.iteration in range(1, self.options['maxiter']+1):
+        maxiter = self.options['maxiter']
+        etol = self.options['etol']
+
+        for self.iteration in range(1, maxiter+1):
             log.iteration(self.iteration, self.verbose)
 
             self.fock_loop()
@@ -349,22 +361,20 @@ class RAGF2(util.AuxMethod):
             self.energy()
 
             if self.iteration > 1:
-                e_dif = abs(self._energies['tot'][-2] - \
-                            self._energies['tot'][-1])
+                e_dif = abs(self._energies['tot'][-2] - self._energies['tot'][-1])
 
-                if e_dif < self.options['etol'] and self.converged:
+                if e_dif < etol and self.converged:
                     break
 
-                self.converged = e_dif < self.options['etol']
+                self.converged = e_dif < etol
 
         if self.converged:
-            log.write('\nAuxiliary GF2 converged after %d iterations.\n' %
-                      self.iteration, self.verbose)
+            log.write('\nAuxiliary GF2 converged after %d iterations.\n' 
+                      % self.iteration, self.verbose)
         else:
             log.write('\nAuxiliary GF2 failed to converge.\n', self.verbose)
 
-        self._timings['total'] = self._timings.get('total', 0.0) \
-                                 + self._timer.total()
+        self._timings['total'] = self._timings.get('total', 0.0) + self._timer.total()
         log.title('Timings', self.verbose)
         log.timings(self._timings, self.verbose)
 

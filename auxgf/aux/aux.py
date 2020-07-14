@@ -289,8 +289,7 @@ class Aux:
             spectrum expressed on `grid`
         '''
 
-        return self.build_spectrum(grid, self.e, self.v, chempot=self.chempot, 
-                                   ordering=ordering)
+        return self.build_spectrum(grid, self.e, self.v, chempot=self.chempot, ordering=ordering)
 
 
     def as_derivative(self, grid, ordering='feynman'):
@@ -311,8 +310,7 @@ class Aux:
             derivative of spectrum expressed on `grid`
         '''
 
-        return self.build_derivative(grid, self.e, self.v, chempot=self.chempot,
-                                     ordering=ordering)
+        return self.build_derivative(grid, self.e, self.v, chempot=self.chempot, ordering=ordering)
 
 
     def as_hamiltonian(self, h_phys, chempot=0.0, out=None):
@@ -340,8 +338,7 @@ class Aux:
         '''
 
         if h_phys.shape != (self.nphys, self.nphys):
-            raise ValueError('physical space of h_phys and couplings '
-                             'must match.')
+            raise ValueError('physical space of h_phys and couplings must match.')
 
 
         if out is None:
@@ -444,8 +441,7 @@ class Aux:
         '''
 
         if h_phys.shape != (self.nphys, self.nphys):
-            raise ValueError('physical space of h_phys and couplings '
-                             'must match.')
+            raise ValueError('physical space of h_phys and couplings must match.')
 
         input_shape = vec.shape
         vec = vec.reshape((self.naux + self.nphys, -1))
@@ -464,7 +460,7 @@ class Aux:
         return out.reshape(input_shape)
 
 
-    def eig(self, h_phys, chempot=0.0, nroots=-1, which='SM', tol=1e-14, maxiter=None, ntrial=None):
+    def eig(self, h_phys, **kwargs):
         ''' Diagonalises `self.as_hamiltonian(h_phys)`.
 
         Parameters
@@ -475,6 +471,15 @@ class Aux:
             chemical potential on the auxiliary space
         nroots : int, optional
             number of eigenvalues required, default -1 (returns all)
+        which : str, optional
+            which eigenvalues to compute (see SciPy), default 'SM'
+        tol : float, optional
+            convergence tolerance, default 1e-14
+        maxiter : int, optional
+            maximum number of iterations, default 10*dim
+        ntrial : int, optional
+            maximum number of trial vectors, default 
+            min(dim, max(2*nroots+1, 20))
 
         Returns
         -------
@@ -491,11 +496,9 @@ class Aux:
         '''
 
         if h_phys.shape != (self.nphys, self.nphys):
-            raise ValueError('physical space of h_phys and couplings '
-                             'must match.')
+            raise ValueError('physical space of h_phys and couplings must match.')
 
-        w, v = eig.eigh(self, h_phys, chempot=chempot, nroots=nroots, 
-                        which=which, tol=tol, maxiter=maxiter, ntrial=ntrial)
+        w, v = eig.eigh(self, h_phys, **kwargs)
 
         return w, v
 
@@ -606,8 +609,7 @@ class Aux:
             if self.nphys*(2*nmom+1) > self.naux:
                 return self.copy()
 
-        red = gftrunc.run(self, h_phys, nmom, method=method, 
-                          beta=beta, chempot=chempot)
+        red = gftrunc.run(self, h_phys, nmom, method=method, beta=beta, chempot=chempot)
 
         return red
 
@@ -640,21 +642,25 @@ class Aux:
             reduced auxiliaries
         '''
 
+        gf_opts = {
+            'method': method,
+            'beta': beta,
+            'chempot': self.chempot,
+        }
+
         if nmom is None or nmom == (None, None):
             return self.copy()
         elif nmom[0] == None:
             return self.se_compress(h_phys, nmom[1], qr=qr)
         elif nmom[1] == None:
-            return self.gf_compress(h_phys, nmom[0], method=method, 
-                                    beta=beta, chempot=self.chempot)
+            return self.gf_compress(h_phys, nmom[0], **gf_opts)
 
         # I don't want to flag for intermediate self.merge call, if
         # this is desired then the user should separately call
         # self.se_compress and self.gf_compress
 
         red = self.se_compress(h_phys, nmom[1], qr=qr)
-        red = red.gf_compress(h_phys, nmom[0], method=method, 
-                              beta=beta, chempot=self.chempot)
+        red = red.gf_compress(h_phys, nmom[0], **gf_opts)
 
         return red
 
@@ -819,8 +825,7 @@ class Aux:
         '''
 
         if self.nphys != other.nphys:
-            raise ValueError('Cannot combine auxiliaries with different '
-                             'physical space dimensions.')
+            raise ValueError('Cannot combine auxiliaries with different physical space dimensions.')
 
         e = np.concatenate((self.e, other.e), axis=0)
         v = np.concatenate((self.v, other.v), axis=1)
