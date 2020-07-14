@@ -137,6 +137,7 @@ class RAMP2(util.AuxMethod):
     @util.record_time('build')
     def build(self):
         eri = self.eri
+        chempot = self.chempot
         self.se = aux.build_rmp2(self.hf.e, self.eri, chempot=chempot, **self.options['_build'])
 
         log.write('naux (build) = %d\n' % self.naux, self.verbose)
