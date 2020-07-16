@@ -32,7 +32,7 @@ class KnownValues(unittest.TestCase):
             warnings.simplefilter('ignore', RuntimeWarning)
             import numdifftools as ndt
         except ImportError:
-            util.warn('No numdifftools installation detected - skipping gradient test')
+            util.log.warn('No numdifftools installation detected - skipping gradient test')
             return
 
         grad = ndt.Gradient(agf2.chempot.objective, step=1e-6, order=3)
