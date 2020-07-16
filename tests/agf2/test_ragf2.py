@@ -26,7 +26,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(ragf2.e_mp2, self.e_mp2, 8)
 
     def test_ragf2_1_1(self):
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(1, 1), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(1, 1), verbose=False, etol=1e-7)
         ragf2.run()
         self.assertTrue(ragf2.converged)
         self.assertAlmostEqual(ragf2.e_mp2, self.e_mp2, 3)
@@ -39,7 +39,7 @@ class KnownValues(unittest.TestCase):
 
     def test_ragf2_df(self):
         rhf_df = hf.RHF(self.m, with_df=True).run()
-        ragf2 = agf2.RAGF2(rhf_df, nmom=(1, 1), verbose=False)
+        ragf2 = agf2.RAGF2(rhf_df, nmom=(1, 1), verbose=False, etol=1e-7)
         ragf2.run()
         self.assertTrue(ragf2.converged)
         self.assertAlmostEqual(ragf2.e_mp2, self.e_mp2, 2)
@@ -51,7 +51,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(ragf2.e_tot,   -75.00465082236444   , 3)
 
     def test_ragf2_2_2(self):
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(1, 1), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(1, 1), verbose=False, etol=1e-7)
         ragf2.run()
         ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), dm0=ragf2.rdm1, damping=True, verbose=False)
         ragf2.run()
@@ -64,7 +64,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(ragf2.e_tot,   -75.00286410304174   , 6)
 
     def test_ragf2_None_3(self):
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(None, 3), damping=True, delay_damping=5, verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None, 3), damping=True, delay_damping=5, verbose=False, etol=1e-7)
         ragf2.run()
         self.assertTrue(ragf2.converged)
         self.assertAlmostEqual(ragf2.e_mp2, self.e_mp2, 6)
@@ -81,7 +81,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.absolute(ragf2.get_fock(self.rhf.rdm1_mo) - self.rhf.fock_mo)), 0, 8)
 
     def test_ip(self):
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False, etol=1e-7)
         ragf2.run()
         w, v = ragf2.se.eig(ragf2.get_fock())
         arg = np.argmax(w[w < ragf2.chempot])
@@ -91,7 +91,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
 
     def test_ea(self):
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(2, 2), verbose=False, etol=1e-7)
         ragf2.run()
         w, v = ragf2.se.eig(ragf2.get_fock())
         arg = np.argmin(w[w >= ragf2.chempot])

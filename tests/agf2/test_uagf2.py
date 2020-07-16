@@ -26,7 +26,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(uagf2.e_mp2, self.e_mp2, 8)
 
     def test_uagf2_1_1(self):
-        uagf2 = agf2.UAGF2(self.uhf, nmom=(1, 1), verbose=False)
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(1, 1), verbose=False, etol=1e-7)
         uagf2.run()
         self.assertTrue(uagf2.converged)
         self.assertAlmostEqual(uagf2.e_mp2, self.e_mp2, 3)
@@ -40,7 +40,7 @@ class KnownValues(unittest.TestCase):
 
     def test_uagf2_df(self):
         uhf = hf.UHF(self.m, with_df=True).run()
-        uagf2 = agf2.UAGF2(uhf, nmom=(1, 1), verbose=False)
+        uagf2 = agf2.UAGF2(uhf, nmom=(1, 1), verbose=False, etol=1e-7)
         uagf2.run()
         self.assertTrue(uagf2.converged)
         self.assertAlmostEqual(uagf2.e_mp2, self.e_mp2, 3)
@@ -55,7 +55,7 @@ class KnownValues(unittest.TestCase):
     def test_uagf2_2_2(self):
         uagf2 = agf2.UAGF2(self.uhf, nmom=(1, 1), verbose=False)
         uagf2.run()
-        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), dm0=uagf2.rdm1, damping=True, verbose=False)
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), dm0=uagf2.rdm1, damping=True, verbose=False, etol=1e-7)
         uagf2.run()
         self.assertTrue(uagf2.converged)
         self.assertAlmostEqual(np.trace(uagf2.rdm1[0]), self.m.nalph, 6)
@@ -67,7 +67,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(uagf2.e_tot,      -75.00286592763473  , 6)
 
     def test_uagf2_None_3(self):
-        uagf2 = agf2.UAGF2(self.uhf, nmom=(None, 3), damping=True, delay_damping=5, verbose=False).run()
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(None, 3), damping=True, delay_damping=5, verbose=False, etol=1e-7).run()
         uagf2.run()
         self.assertTrue(uagf2.converged)
         self.assertAlmostEqual(uagf2.e_mp2, self.e_mp2, 6)
@@ -85,7 +85,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.absolute(uagf2.get_fock(self.uhf.rdm1_mo) - self.uhf.fock_mo)), 0, 8)
 
     def test_ip(self):
-        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False)
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False, etol=1e-7)
         uagf2.run()
         wa, va = uagf2.se[0].eig(uagf2.get_fock()[0])
         wb, vb = uagf2.se[1].eig(uagf2.get_fock()[1])
@@ -100,7 +100,7 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.linalg.norm(v1), np.linalg.norm(v2), 8)
 
     def test_ea(self):
-        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False)
+        uagf2 = agf2.UAGF2(self.uhf, nmom=(2, 2), verbose=False, etol=1e-7)
         uagf2.run()
         wa, va = uagf2.se[0].eig(uagf2.get_fock()[0])
         wb, vb = uagf2.se[1].eig(uagf2.get_fock()[1])

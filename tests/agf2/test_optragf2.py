@@ -29,9 +29,9 @@ class KnownValues(unittest.TestCase):
     def test_ragf2(self):
         # Dependent upon RAGF2 passing tests
         dm0 = self.rhf.rdm1_mo
-        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, dm0=dm0, verbose=False)
+        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, dm0=dm0, verbose=False, etol=1e-7)
         opt_ragf2.run()
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False, etol=1e-7)
         ragf2.run()
         self.assertAlmostEqual(ragf2.e_mp2, opt_ragf2.e_mp2, 4)
         self.assertAlmostEqual(np.trace(ragf2.rdm1), np.trace(opt_ragf2.rdm1), 4)
@@ -43,9 +43,9 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(ragf2.chempot, opt_ragf2.chempot, 4)
 
     def test_ip(self):
-        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False)
+        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False, etol=1e-7)
         opt_ragf2.run()
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False, etol=1e-7)
         ragf2.run()
         w, v = opt_ragf2.se.eig(opt_ragf2.get_fock())
         arg = np.argmax(w[w < opt_ragf2.chempot])
@@ -58,9 +58,9 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(np.linalg.norm(v2), np.linalg.norm(v3), 4)
 
     def test_ea(self):
-        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False)
+        opt_ragf2 = agf2.OptRAGF2(self.rhf_df, verbose=False, etol=1e-7)
         opt_ragf2.run()
-        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False)
+        ragf2 = agf2.RAGF2(self.rhf, nmom=(None,0), verbose=False, etol=1e-7)
         ragf2.run()
         w, v = opt_ragf2.se.eig(opt_ragf2.get_fock())
         arg = np.argmin(w[w >= opt_ragf2.chempot])
