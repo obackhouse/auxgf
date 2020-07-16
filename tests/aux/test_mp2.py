@@ -57,7 +57,7 @@ class KnownValues(unittest.TestCase):
         se1 = aux.mp2.build_mp2_iter(se_null, self.rhf.fock_mo, self.eri_rhf, wtol=0)
         se2 = aux.rmp2.build_rmp2_iter(se_null, self.rhf.fock_mo, self.eri_rhf, wtol=0)
         self.assertAlmostEqual(np.max(np.absolute(se1.e - se2.e)), 0, 12)
-        self.assertAlmostEqual(np.max(np.absolute(se1.v - se2.v)), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1.v, se1.v.T) - np.dot(se2.v, se2.v.T))), 0, 12)
 
     def test_build_ump2_iter(self):
         eo, ev, xija, xabi = aux.ump2._parse_uhf(self.uhf.e, self.eri_uhf[0], self.uhf.chempot)
@@ -66,9 +66,9 @@ class KnownValues(unittest.TestCase):
         se1a, se1b = aux.mp2.build_mp2_iter((sea_null, seb_null), self.uhf.fock_mo, self.eri_uhf, wtol=0)
         se2a, se2b = aux.ump2.build_ump2_iter((sea_null, seb_null), self.uhf.fock_mo, self.eri_uhf, wtol=0)
         self.assertAlmostEqual(np.max(np.absolute(se1a.e - se2a.e)), 0, 12)
-        self.assertAlmostEqual(np.max(np.absolute(se1a.v - se2a.v)), 0, 12)
         self.assertAlmostEqual(np.max(np.absolute(se1b.e - se2b.e)), 0, 12)
-        self.assertAlmostEqual(np.max(np.absolute(se1b.v - se2b.v)), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1a.v, se1a.v.T) - np.dot(se2a.v, se2a.v.T))), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1b.v, se1b.v.T) - np.dot(se2b.v, se2b.v.T))), 0, 12)
 
     def test_build_dfrmp2_part(self):
         eo, ev, ixq, qja, axq, qbi = aux.dfrmp2._parse_rhf(self.rhf_df.e, self.eri_rhf_df, self.eri_rhf_df, self.rhf_df.chempot)
@@ -102,7 +102,7 @@ class KnownValues(unittest.TestCase):
         se1 = aux.mp2.build_dfmp2_iter(se_null, self.rhf_df.fock_mo, self.eri_rhf_df, wtol=0)
         se2 = aux.dfrmp2.build_dfrmp2_iter(se_null, self.rhf_df.fock_mo, self.eri_rhf_df, wtol=0)
         self.assertAlmostEqual(np.max(np.absolute(se1.e - se2.e)), 0, 12)
-        self.assertAlmostEqual(np.max(np.absolute(se1.v - se2.v)), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1.v, se1.v.T) - np.dot(se2.v, se2.v.T))), 0, 12)
 
     def test_build_dfump2_iter(self):
         eo, ev, ixq, qja, axq, qbi = aux.dfump2._parse_uhf(self.uhf_df.e, self.eri_uhf_df, self.eri_uhf_df, self.uhf_df.chempot)
@@ -110,6 +110,10 @@ class KnownValues(unittest.TestCase):
         seb_null = aux.Aux([], [[],]*self.uhf.nao, chempot=self.uhf.chempot[1])
         se1a, se1b = aux.mp2.build_dfmp2_iter((sea_null, seb_null), self.uhf_df.fock_mo, self.eri_uhf_df, wtol=0)
         se2a, se2b = aux.dfump2.build_dfump2_iter((sea_null, seb_null), self.uhf_df.fock_mo, self.eri_uhf_df, wtol=0)
+        self.assertAlmostEqual(np.max(np.absolute(se1a.e - se2a.e)), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(se1b.e - se2b.e)), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1a.v, se1a.v.T) - np.dot(se2a.v, se2a.v.T))), 0, 12)
+        self.assertAlmostEqual(np.max(np.absolute(np.dot(se1b.v, se1b.v.T) - np.dot(se2b.v, se2b.v.T))), 0, 12)
 
 
 if __name__ == '__main__':
