@@ -24,11 +24,11 @@ class KnownValues(unittest.TestCase):
 
     def test_radc2_ip(self):
         adc2 = adc.ADC2(self.rhf).run()
-        self.assertAlmostEqual(adc2.ip[0], 0.398405767574538, 8)
+        self.assertAlmostEqual(np.ravel(adc2.ip[0])[0], 0.398405767574538, 8)
 
     def test_radc2_ea(self):
         adc2 = adc.ADC2(self.rhf).run()
-        self.assertAlmostEqual(adc2.ea[0], 0.15307444259968273, 8)
+        self.assertAlmostEqual(np.ravel(adc2.ea[0])[0], 0.15307444259968273, 8)
 
     def test_uadc2_ecorr(self):
         adc2 = adc.ADC2(self.uhf).run()
@@ -36,11 +36,11 @@ class KnownValues(unittest.TestCase):
 
     def test_uadc2_ip(self):
         adc2 = adc.ADC2(self.uhf).run()
-        self.assertAlmostEqual(adc2.ip[0], 0.3984057677344674, 8)
-
-    def test_uadc2_ea(self):
+        self.assertAlmostEqual(np.ravel(adc2.ip[0])[0], 0.3984057677344674, 8)
+                                                      
+    def test_uadc2_ea(self):                          
         adc2 = adc.ADC2(self.uhf).run()
-        self.assertAlmostEqual(adc2.ea[0], 0.15307444260447728, 8)
+        self.assertAlmostEqual(np.ravel(adc2.ea[0])[0], 0.15307444260447728, 8)
 
 
 if __name__ == '__main__':
