@@ -159,6 +159,7 @@ class OptRAGF2(util.AuxMethod):
     @util.record_time('setup')
     def setup(self):
         super().setup()
+
         self.gf = self.se.new(self.hf.e, np.eye(self.hf.nao))
 
         if self.eri.ndim == 3:
@@ -222,72 +223,114 @@ class OptRAGF2(util.AuxMethod):
         return out
 
 
-    @staticmethod
-    def build_x(ixq, qja, nphys, nocc, nvir):
-        ''' Builds the X array, entirely equivalent to the zeroth-
-            order moment matrix of the self-energy.
-        '''
+    #@staticmethod
+    #def build_x(ixq, qja, nphys, nocc, nvir):
+    #    ''' Builds the X array, entirely equivalent to the zeroth-
+    #        order moment matrix of the self-energy.
+    #    '''
 
-        x = np.zeros((nphys, nphys), dtype=types.float64)
-        buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
-        buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
+    #    x = np.zeros((nphys, nphys), dtype=types.float64)
+    #    buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
+    #    buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
 
-        for i in range(mpi.rank, nocc, mpi.size):
-            xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
-            xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+    #    for i in range(mpi.rank, nocc, mpi.size):
+    #        xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
+    #        xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
+    #        xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
-            x = util.dgemm(xja, xja.T, alpha=2, beta=1, c=x)
-            x = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
+    #        x = util.dgemm(xja, xja.T, alpha=2, beta=1, c=x)
+    #        x = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
 
-        x = mpi.reduce(x)
+    #    x = mpi.reduce(x)
 
-        return x
+    #    return x
 
 
-    @staticmethod
-    def build_m(gf_occ, gf_vir, ixq, qja, b_inv):
-        ''' Builds the M array.
-        '''
+    #@staticmethod
+    #def build_m(gf_occ, gf_vir, ixq, qja, b_inv):
+    #    ''' Builds the M array.
+    #    '''
 
-        nphys = gf_occ.nphys
-        nocc = gf_occ.naux
-        nvir = gf_vir.naux
+    #    nphys = gf_occ.nphys
+    #    nocc = gf_occ.naux
+    #    nvir = gf_vir.naux
 
-        m = np.zeros((nphys, nphys), dtype=types.float64)
+    #    m = np.zeros((nphys, nphys), dtype=types.float64)
 
-        eo, ev = gf_occ.e, gf_vir.e
-        indices = mpi.tril_indices_rows(nocc)
-        pos_factor = np.sqrt(0.5)
-        neg_factor = np.sqrt(1.5)
+    #    eo, ev = gf_occ.e, gf_vir.e
+    #    indices = mpi.tril_indices_rows(nocc)
+    #    pos_factor = np.sqrt(0.5)
+    #    neg_factor = np.sqrt(1.5)
 
-        for i in indices[mpi.rank]:
-            xq = ixq[i*nphys:(i+1)*nphys]
-            qa = qja[:,i*nvir:(i+1)*nvir]
+    #    for i in indices[mpi.rank]:
+    #        xq = ixq[i*nphys:(i+1)*nphys]
+    #        qa = qja[:,i*nvir:(i+1)*nvir]
 
-            xja = np.dot(ixq[:i*nphys], qa)
-            xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
-            xia = np.dot(xq, qja[:,:i*nvir])
-            xa = np.dot(xq, qa)
+    #        xja = np.dot(ixq[:i*nphys], qa)
+    #        xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+    #        xia = np.dot(xq, qja[:,:i*nvir])
+    #        xa = np.dot(xq, qa)
 
-            ea = eb = eo[i] + util.dirsum('i,a->ia', eo[:i], -ev).ravel()
-            ec = 2 * eo[i] - ev
+    #        ea = eb = eo[i] + util.dirsum('i,a->ia', eo[:i], -ev).ravel()
+    #        ec = 2 * eo[i] - ev
 
-            va = neg_factor * (xia - xja)
-            vb = pos_factor * (xia + xja)
-            vc = xa
+    #        va = neg_factor * (xia - xja)
+    #        vb = pos_factor * (xia + xja)
+    #        vc = xa
 
-            qa = np.dot(b_inv.T, va)
-            qb = np.dot(b_inv.T, vb)
-            qc = np.dot(b_inv.T, vc)
+    #        qa = np.dot(b_inv.T, va)
+    #        qb = np.dot(b_inv.T, vb)
+    #        qc = np.dot(b_inv.T, vc)
 
-            m = util.dgemm(qa * ea[None], qa.T, c=m, beta=1)
-            m = util.dgemm(qb * eb[None], qb.T, c=m, beta=1)
-            m = util.dgemm(qc * ec[None], qc.T, c=m, beta=1)
+    #        m = util.dgemm(qa * ea[None], qa.T, c=m, beta=1)
+    #        m = util.dgemm(qb * eb[None], qb.T, c=m, beta=1)
+    #        m = util.dgemm(qc * ec[None], qc.T, c=m, beta=1)
 
-        m = mpi.reduce(m)
+    #    m = mpi.reduce(m)
 
-        return m
+    #    return m
+
+
+    #@staticmethod
+    #def build_part(gf_occ, gf_vir, eri, sym_in='s2'):
+    #    ''' Builds the truncated occupied (or virtual) self-energy.
+
+    #    Parameters
+    #    ----------
+    #    gf_occ : Aux
+    #        Occupied (or virtual) Green's function
+    #    gf_vir : Aux
+    #        Virtual (or occupied) Green's function
+    #    eri : ndarray
+    #        Cholesky-decomposed DF ERI tensor
+    #    sym_in : str, optional
+    #        Symmetry of `eri`, default 's2'
+
+    #    Returns
+    #    -------
+    #    se : Aux
+    #        Occupied (or virtual) truncated self-energy
+    #    '''
+
+    #    syms = dict(sym_in=sym_in, sym_out='s1')
+    #    nphys = gf_occ.nphys
+    #    nocc = gf_occ.naux
+    #    nvir = gf_vir.naux
+
+    #    ixq = OptRAGF2.ao2mo(eri, gf_occ.v, np.eye(nphys), **syms).T
+    #    qja = OptRAGF2.ao2mo(eri, gf_occ.v, gf_vir.v, **syms)
+
+    #    x = OptRAGF2.build_x(ixq, qja, nphys, nocc, nvir)
+    #    b = np.linalg.cholesky(x).T
+    #    b_inv = np.linalg.inv(b)
+    #    m = OptRAGF2.build_m(gf_occ, gf_vir, ixq, qja, b_inv)
+
+    #    e, c = util.eigh(m)
+    #    c = np.dot(b.T, c[:nphys])
+
+    #    se = gf_occ.new(e, c)
+
+    #    return se
 
 
     @staticmethod
@@ -319,10 +362,33 @@ class OptRAGF2(util.AuxMethod):
         ixq = OptRAGF2.ao2mo(eri, gf_occ.v, np.eye(nphys), **syms).T
         qja = OptRAGF2.ao2mo(eri, gf_occ.v, gf_vir.v, **syms)
 
-        x = OptRAGF2.build_x(ixq, qja, nphys, nocc, nvir)
-        b = np.linalg.cholesky(x).T
+        vv = np.zeros((nphys, nphys), dtype=types.float64)
+        vev = np.zeros((nphys, nphys), dtype=types.float64)
+
+        buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
+        buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
+
+        for i in range(mpi.rank, nocc, mpi.size):
+            xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
+            xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
+            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+
+            eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
+            eja = eja.ravel()
+
+            vv = util.dgemm(xja, xja.T, alpha=2, beta=1, c=vv)
+            vv = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=vv)
+
+            vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
+            vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
+
+        vv = mpi.reduce(vv)
+        vev = mpi.reduce(vev)
+
+        b = np.linalg.cholesky(vv).T
         b_inv = np.linalg.inv(b)
-        m = OptRAGF2.build_m(gf_occ, gf_vir, ixq, qja, b_inv)
+
+        m = np.dot(np.dot(b_inv.T, vev), b_inv)
 
         e, c = util.eigh(m)
         c = np.dot(b.T, c[:nphys])
@@ -520,7 +586,6 @@ class OptRAGF2(util.AuxMethod):
     @property
     def e_mp2(self):
         return self._energies['mp2'][-1]
-
 
     @property
     def nmom(self):
