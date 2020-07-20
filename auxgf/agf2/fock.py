@@ -11,7 +11,8 @@ from auxgf.agf2.chempot import minimize, diag_fock_ext
 
 
 def _set_options(**kwargs):
-    options = { 'diis_space': 8,
+    options = { 'fock_func': None,
+                'diis_space': 8,
                 'netol': 1e-6,
                 'dtol': 1e-6,
                 'verbose': True,
@@ -49,6 +50,8 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
         Hartree-Fock object
     rdm : (n,n) ndarray
         initial reduced density matrix
+    fock_func : callable, optional
+        function to return the fock matrix, taking rdm as an argument
     diis_space : int, optional  
         size of DIIS space, default 8
     netol : int, optional
@@ -82,6 +85,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
     options = _set_options(**kwargs)
 
+    get_fock = options['fock_func']
     diis_space = options['diis_space']
     tol = options['netol']
     dtol = options['dtol']
@@ -92,8 +96,11 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
     method = options['method']
     jac = options['jac']
 
+    if get_fock is None:
+        get_fock = lambda rdm: hf.get_fock(rdm, basis='mo')
+
     diis = util.DIIS(space=diis_space)
-    fock = hf.get_fock(rdm, basis='mo')
+    fock = get_fock(rdm)
     nphys = se.nphys
 
     if not isinstance(frozen, tuple):
@@ -117,7 +124,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
             c_occ = v[:nphys, w < se.chempot]
             rdm[act,act] = np.dot(c_occ, c_occ.T) * 2
-            fock = hf.get_fock(rdm, basis='mo')
+            fock = get_fock(rdm)
 
             if niter > 1:
                 fock = diis.update(fock)
@@ -188,6 +195,7 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
 
     options = _set_options(**kwargs)
 
+    get_fock = options['fock_func']
     diis_space = options['diis_space']
     tol = options['netol']
     dtol = options['dtol']
@@ -198,8 +206,11 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
     method = options['method']
     jac = options['jac']
 
+    if get_fock is None:
+        get_fock = lambda rdm: hf.get_fock(rdm, basis='mo')
+
     diis = util.DIIS(space=diis_space)
-    fock = hf.get_fock(rdm, basis='mo')
+    fock = get_fock(rdm)
     nphys = se[0].nphys
 
     if not isinstance(frozen, tuple):
@@ -234,7 +245,7 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
             rdm_b = np.dot(c_occ_b, c_occ_b.T)
             rdm[:,act,act] = np.stack((rdm_a, rdm_b))
 
-            fock = hf.get_fock(rdm, basis='mo')
+            fock = get_fock(rdm)
 
             if niter > 1:
                 fock = diis.update(fock)

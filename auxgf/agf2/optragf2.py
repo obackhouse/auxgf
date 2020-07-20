@@ -415,6 +415,7 @@ class OptRAGF2(util.AuxMethod):
     @util.record_time('fock')
     def fock_loop(self):
         fock_opts = self.options['_fock_loop']
+        fock_opts['fock_func'] = self.get_fock
 
         se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1, **fock_opts)
 
