@@ -116,14 +116,14 @@ class AuxMethod:
 
     @property
     def ip(self):
-        e, v = np.inf, None
+        e, v = -np.inf, None
 
         if isinstance(self.gf, (list, tuple)):
             for gf in self.gf:
                 gf_occ = gf.as_occupied()
                 arg = np.argmax(gf_occ.e)
 
-                if abs(self.chempot[0] - gf_occ.e[arg]) < e:
+                if gf_occ.e[arg] > e:
                     e, v = gf_occ.e[arg], gf_occ.v[:,arg]
 
         else:
@@ -143,7 +143,7 @@ class AuxMethod:
                 gf_vir = gf.as_virtual()
                 arg = np.argmin(gf_vir.e)
 
-                if abs(gf_vir.e[arg] - self.chempot[1]) < e:
+                if gf_vir.e[arg] < e:
                     e, v = gf_vir.e[arg], gf_vir.v[:,arg]
 
         else:
