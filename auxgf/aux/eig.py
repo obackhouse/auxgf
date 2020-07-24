@@ -66,7 +66,7 @@ def davidson(se, h_phys, chempot=0.0, nroots=1, which='SM', tol=1e-14, maxiter=N
     conv, w, v = util.davidson(matvec, guess, diag, tol=tol, nroots=nroots, 
                                max_space=ntrial, max_cycle=maxiter, pick=pick)
 
-    if not conv:
+    if not np.all(conv):
         log.warn('Davidson solver did not converge.')
 
     return w, v
