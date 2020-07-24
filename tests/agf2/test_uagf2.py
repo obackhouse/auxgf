@@ -91,7 +91,7 @@ class KnownValues(unittest.TestCase):
         wb, vb = uagf2.se[1].eig(uagf2.get_fock()[1])
         arga = np.argmax(wa[wa < uagf2.chempot[0]])
         argb = np.argmax(wb[wb < uagf2.chempot[1]])
-        if wa[wa < uagf2.chempot[0]][arga] > wb[wb < uagf2.chempot[1]][argb]:
+        if wa[wa < uagf2.chempot[0]][arga] < wb[wb < uagf2.chempot[1]][argb]:
             e1, v1 = -wa[wa < uagf2.chempot[0]][arga], va[:,wa < uagf2.chempot[0]][:,arga][:uagf2.nphys]
         else:
             e1, v1 = -wb[wb < uagf2.chempot[1]][argb], vb[:,wb < uagf2.chempot[1]][:,argb][:uagf2.nphys]
