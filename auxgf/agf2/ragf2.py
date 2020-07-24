@@ -53,22 +53,6 @@ def _set_options(options, **kwargs):
     return options
 
 
-def _active(ragf2, arr, ndim):
-    ''' Returns the active space of an n-dimensional array.
-    '''
-
-    frozen = ragf2.options['frozen']
-
-    if not frozen:
-        return arr
-
-    act_ = slice(frozen[0], arr.shape[0]-frozen[1])
-
-    act = (Ellipsis,) + (act_,)*ndim
-
-    return arr[act]
-
-
 class RAGF2(util.AuxMethod):
     ''' Restricted auxiliary GF2 method.
 
@@ -203,13 +187,13 @@ class RAGF2(util.AuxMethod):
         use_merge = self.options['use_merge']
 
         self._se_prev = self.se.copy()
-        eri_act = _active(self, self.eri, 2 if self.hf.with_df else 4)
-        fock_act = _active(self, self.get_fock(), 2)
+        eri = self.get_eri_act()
+        fock = self.get_fock_act()
 
         if self.hf.with_df:
-            self.se = aux.build_dfmp2_iter(self.se, fock_act, eri_act, **build_opts)
+            self.se = aux.build_dfmp2_iter(self.se, fock, eri, **build_opts)
         else:
-            self.se = aux.build_mp2_iter(self.se, fock_act, eri_act, **build_opts)
+            self.se = aux.build_mp2_iter(self.se, fock, eri, **build_opts)
         
         if use_merge:
             self.se = self.se.merge(etol=etol, wtol=wtol)
@@ -231,16 +215,12 @@ class RAGF2(util.AuxMethod):
             log.write('Fock loop did not converge.\n', self.verbose)
             log.write('Chemical potential = %.6f\n' % self.chempot, self.verbose)
 
-        fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
-
-        e_qmo, v_qmo = util.eigh(se.as_hamiltonian(fock_act))
-        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
-
         self.se = se
         self.rdm1 = rdm1
+        self.solve_dyson()
 
-        e_hoqmo = util.amax(e_qmo[e_qmo < self.chempot])
-        e_luqmo = util.amin(e_qmo[e_qmo >= self.chempot])
+        e_hoqmo = util.amax(self.gf.e_occ)
+        e_luqmo = util.amin(self.gf.e_vir)
 
         log.write('HOQMO = %.6f\n' % e_hoqmo, self.verbose)
         log.write('LUQMO = %.6f\n' % e_luqmo, self.verbose)
@@ -261,7 +241,7 @@ class RAGF2(util.AuxMethod):
         if nmom_gf is None and nmom_se is None:
             return
 
-        fock = _active(self, self.get_fock(), 2)
+        fock = self.get_fock_act()
 
         self.se = self.se.compress(fock, self.nmom, method=method, beta=beta, qr=qr)
 
@@ -296,7 +276,11 @@ class RAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
-        emp2 = aux.energy.energy_mp2_aux(_active(self, self.hf.e, 1), self.se)
+        c, v = self.options['frozen']
+        arg = slice(c, -v if v else None)
+        e_mo = self.hf.e[arg]
+
+        emp2 = aux.energy.energy_mp2_aux(e_mo, self.se)
 
         log.write('E(mp2) = %.12f\n' % emp2, self.verbose)
 
@@ -315,9 +299,7 @@ class RAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        fock_act = _active(self, self.get_fock(), 2)
-        e_qmo, v_qmo = self.se.eig(fock_act)
-        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
+        self.solve_dyson()
 
         e2b = aux.energy.energy_2body_aux(self.gf, self.se)
 

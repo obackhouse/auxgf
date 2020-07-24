@@ -14,22 +14,6 @@ from auxgf.agf2 import ragf2
 _set_options = ragf2._set_options
 
 
-def _active(uagf2, arr, ndim):
-    ''' Returns the active space of an n-dimensional array.
-    '''
-
-    frozen = uagf2.options['frozen']
-
-    if not frozen:
-        return arr
-
-    act_ = slice(frozen[0], arr.shape[-1]-frozen[1])
-    
-    act = (Ellipsis,) + (act_,)*ndim
-
-    return arr[act]
-
-
 class UAGF2(util.AuxMethod):
     ''' Unrestricted auxiliary GF2 method.
 
@@ -164,13 +148,13 @@ class UAGF2(util.AuxMethod):
         use_merge = self.options['use_merge']
 
         self._se_prev = (self.se[0].copy(), self.se[1].copy())
-        eri_act = _active(self, self.eri, 2 if self.hf.with_df else 4)
-        fock_act = _active(self, self.get_fock(), 2)
+        eri = self.get_eri_act()
+        fock = self.get_fock_act()
 
         if self.hf.with_df:
-            sea, seb = aux.build_dfmp2_iter(self.se, fock_act, eri_act, **build_opts)
+            sea, seb = aux.build_dfmp2_iter(self.se, fock, eri, **build_opts)
         else:
-            sea, seb = aux.build_mp2_iter(self.se, fock_act, eri_act, **build_opts)
+            sea, seb = aux.build_mp2_iter(self.se, fock, eri, **build_opts)
 
         if use_merge:
             sea = sea.merge(etol=etol, wtol=wtol)
@@ -198,19 +182,14 @@ class UAGF2(util.AuxMethod):
             log.write('Chemical potential (alpha) = %.6f\n' % self.chempot[0], self.verbose)
             log.write('Chemical potential (beta)  = %.6f\n' % self.chempot[1], self.verbose)
 
-        fock_act = _active(self, self.get_fock(rdm1=rdm1), 2)
-        e_qmo_a, v_qmo_a = util.eigh(se[0].as_hamiltonian(fock_act[0]))
-        e_qmo_b, v_qmo_b = util.eigh(se[1].as_hamiltonian(fock_act[1]))
-        self.gf = (se[0].new(e_qmo_a, v_qmo_a[:self.nphys]), 
-                   se[1].new(e_qmo_b, v_qmo_b[:self.nphys]))
-
         self.se = se
         self.rdm1 = rdm1
+        self.solve_dyson()
 
-        e_hoqmo_a = util.amax(e_qmo_a[e_qmo_a < self.chempot[0]])
-        e_hoqmo_b = util.amax(e_qmo_b[e_qmo_b < self.chempot[1]])
-        e_luqmo_a = util.amin(e_qmo_a[e_qmo_a >= self.chempot[0]])
-        e_luqmo_b = util.amin(e_qmo_b[e_qmo_b >= self.chempot[1]])
+        e_hoqmo_a = util.amax(self.gf[0].e_occ)
+        e_hoqmo_b = util.amax(self.gf[1].e_occ)
+        e_luqmo_a = util.amin(self.gf[0].e_vir)
+        e_luqmo_b = util.amin(self.gf[1].e_vir)
 
         log.write('HOQMO (alpha) = %.6f\n' % e_hoqmo_a, self.verbose)
         log.write('HOQMO (beta)  = %.6f\n' % e_hoqmo_b, self.verbose)
@@ -234,7 +213,7 @@ class UAGF2(util.AuxMethod):
         if nmom_gf is None and nmom_se is None:
             return
 
-        fock = _active(self, self.get_fock(), 2)
+        fock = self.get_fock_act()
 
         sea = self.se[0].compress(fock[0], self.nmom, method=method, beta=beta, qr=qr)
         seb = self.se[1].compress(fock[1], self.nmom, method=method, beta=beta, qr=qr)
@@ -282,9 +261,13 @@ class UAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('mp2')
     def energy_mp2(self):
-        e_act = _active(self, self.hf.e, 1)
-        emp2a = aux.energy.energy_mp2_aux(e_act[0], self.se[0])
-        emp2b = aux.energy.energy_mp2_aux(e_act[1], self.se[1])
+        c, v = self.options['frozen']
+        arg = slice(c, -v if v else None)
+        e_mo_a = self.hf.e[0][arg]
+        e_mo_b = self.hf.e[1][arg]
+
+        emp2a = aux.energy.energy_mp2_aux(e_mo_a, self.se[0])
+        emp2b = aux.energy.energy_mp2_aux(e_mo_b, self.se[1])
 
         emp2 = emp2a + emp2b
         emp2 /= 2
@@ -306,11 +289,7 @@ class UAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        fock_act = _active(self, self.get_fock(), 2)
-        e_qmo_a, v_qmo_a = util.eigh(self.se[0].as_hamiltonian(fock_act[0]))
-        e_qmo_b, v_qmo_b = util.eigh(self.se[1].as_hamiltonian(fock_act[1]))
-        self.gf = (self.se[0].new(e_qmo_a, v_qmo_a[:self.nphys]),
-                   self.se[1].new(e_qmo_b, v_qmo_b[:self.nphys]))
+        self.solve_dyson()
 
         e2b = aux.energy.energy_2body_aux(self.gf, self.se)
 

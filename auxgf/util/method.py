@@ -114,6 +114,39 @@ class AuxMethod:
         return fock
 
 
+    def get_fock_act(self, rdm1=None):
+        c, v = self.options['frozen']
+        arg = slice(c, -v if v else None)
+
+        return  self.get_fock(rdm1=rdm1)[...,arg,arg]
+
+
+    def get_eri_act(self):
+        c, v = self.options['frozen']
+        arg = slice(c, -v if v else None)
+
+        if self.hf.with_df:
+            return self.eri[...,arg,arg]
+        else:
+            return self.eri[...,arg,arg,arg,arg]
+
+
+    def solve_dyson(self):
+        def _solve_dyson(se, fock):
+            e, c = se.eig(fock)
+            c = c[:se.nphys]
+            gf = se.new(e, c)
+            return gf
+
+        fock = self.get_fock_act()
+            
+        if isinstance(self.se, (list, tuple)):
+            assert fock.shape[0] == len(self.se)
+            self.gf = tuple([_solve_dyson(se, f) for se,f in zip(self.se, fock)])
+        else:
+            self.gf = _solve_dyson(self.se, fock)
+
+
     @property
     def ip(self):
         e, v = -np.inf, None

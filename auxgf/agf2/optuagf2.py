@@ -322,11 +322,7 @@ class OptUAGF2(util.AuxMethod):
 
     @util.record_time('build')
     def build(self):
-        fock = self.get_fock()
-        e_a, c_a = self.se[0].eig(fock[0])
-        e_b, c_b = self.se[1].eig(fock[1])
-
-        self.gf = (self.se[0].new(e_a, c_a[:self.nphys]), self.se[1].new(e_b, c_b[:self.nphys]))
+        self.solve_dyson()
 
         gf_occ = (self.gf[0].as_occupied(), self.gf[1].as_occupied())
         gf_vir = (self.gf[0].as_virtual(), self.gf[1].as_virtual())
@@ -344,10 +340,7 @@ class OptUAGF2(util.AuxMethod):
 
         se, rdm1, converged = fock_loop_uhf(self.se, self.hf, self.rdm1, **fock_opts)
 
-        fock = self.get_fock()
-        w_a, v_a = self.se[0].eig(fock[0])
-        w_b, v_b = self.se[1].eig(fock[1])
-        self.gf = (self.se[0].new(w_a, v_a[:self.nphys]), self.se[1].new(w_b, v_b[:self.nphys]))
+        self.solve_dyson()
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
@@ -385,6 +378,8 @@ class OptUAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
+        self.solve_dyson()
+
         e2b = aux.energy_2body_aux(self.gf, self.se)
 
         log.write('E(2b)  = %.12f\n' % e2b, self.verbose)

@@ -400,8 +400,7 @@ class OptRAGF2(util.AuxMethod):
 
     @util.record_time('build')
     def build(self):
-        e, c = self.se.eig(self.get_fock())
-        self.gf = self.se.new(e, c[:self.nphys])
+        self.solve_dyson()
 
         gf_occ = self.gf.as_occupied()
         gf_vir = self.gf.as_virtual()
@@ -419,8 +418,7 @@ class OptRAGF2(util.AuxMethod):
 
         se, rdm1, converged = fock_loop_rhf(self.se, self.hf, self.rdm1, **fock_opts)
 
-        w, v = self.se.eig(self.get_fock())
-        self.gf = self.se.new(w, v[:self.nphys])
+        self.solve_dyson()
 
         if converged:
             log.write('Fock loop converged.\n', self.verbose)
@@ -452,8 +450,7 @@ class OptRAGF2(util.AuxMethod):
     @util.record_time('energy')
     @util.record_energy('2b')
     def energy_2body(self):
-        e_qmo, v_qmo = self.se.eig(self.get_fock())
-        self.gf = self.se.new(e_qmo, v_qmo[:self.nphys])
+        self.solve_dyson()
 
         e2b = 0.0
 
