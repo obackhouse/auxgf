@@ -149,121 +149,75 @@ class OptUAGF2(util.AuxMethod):
 
 
     #@staticmethod
-    #def ao2mo(eri, ci, cj, sym_in='s2', sym_out='s2', maxblk=120, out=None):
-    #    ''' Orbital transformation from density-fitted ERIs.
-
-    #    Parameters
-    #    ----------
-    #    eri : (2,q,n,n) or (q,n,n) ndarray
-    #        Cholesky-decomposed ERI tensor
-    #    ci : (2,n,n) or (n,n) ndarray
-    #        Coefficients for first index
-    #    cj : (2,n,n) or (n,n) ndarray
-    #        Coefficients for second index
-    #    sym_in : str, optional
-    #        Input symmetry of `eri`, 's1' means no index symmetry
-    #        and 's2' means indices are symmetric, default 's2'
-    #    sym_out : str, optional
-    #        Desired output symmetry, default 's2'
-    #    out : ndarray, optional
-    #        Output array, if None then allocate inside function,
-    #        default None
-
-    #    Returns
-    #    -------
-    #    out : (2,q,n,n) ndarray
-    #        Transformed Cholesky-decomposed ERI tensor
+    #def build_x(ixq, qja, nphys, nocc, nvir):
+    #    ''' Builds the X array, entirely equivalent to the zeroth-
+    #        order moment matrix of the self-energy.
     #    '''
 
-    #    #TODO: test out argument
+    #    nocca, noccb = nocc
+    #    nvira, nvirb = nvir
 
-    #    eri_a, eri_b = eri if eri.ndim == 4 else eri, eri
-    #    ci_a, ci_b = ci if ci.ndim == 3 else ci, ci
-    #    cj_a, cj_b = cj if cj.ndim == 3 else cj, cj
-    #    out_a, out_b = out[0], out[1] if out is not None else None, None
-    #    sym = { 'sym_in': sym_in, 'sym_out': sym_out }
+    #    x = np.zeros((nphys, nphys), dtype=types.float64)
+    #    buf1 = np.zeros((nphys, nocca*nvira), dtype=types.float64)
+    #    buf2 = np.zeros((nocca*nphys, nvira), dtype=types.float64)
+    #    buf3 = np.zeros((nphys, noccb*nvirb), dtype=types.float64)
+    #    
+    #    for i in range(mpi.rank, nocca, mpi.size):
+    #        xja_aa = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[0], out=buf1)
+    #        xia_aa = np.dot(ixq[0], qja[0][:,i*nvira:(i+1)*nvira], out=buf2)
+    #        xia_aa = _reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
+    #        xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[1], out=buf3)
 
-    #    eri_a = optragf2.OptRAGF2.ao2mo(eri_a, ci_a, cj_a, maxblk=maxblk, out=out_a, **sym)
-    #    eri_b = optragf2.OptRAGF2.ao2mo(eri_b, ci_b, cj_b, maxblk=maxblk, out=out_b, **sym)
+    #        x = util.dgemm(xja_aa, xja_aa.T, alpha=1, beta=1, c=x)
+    #        x = util.dgemm(xja_aa, xia_aa.T, alpha=-1, beta=1, c=x)
+    #        x = util.dgemm(xja_ab, xja_ab.T, alpha=1, beta=1, c=x)
 
-    #    if out is not None:
-    #        eri = out
-    #    else:
-    #        eri = np.concatenate((eri_a, eri_b), axis=0)
+    #    x = mpi.reduce(x)
 
-    #    return eri
-
-
-    @staticmethod
-    def build_x(ixq, qja, nphys, nocc, nvir):
-        ''' Builds the X array, entirely equivalent to the zeroth-
-            order moment matrix of the self-energy.
-        '''
-
-        nocca, noccb = nocc
-        nvira, nvirb = nvir
-
-        x = np.zeros((nphys, nphys), dtype=types.float64)
-        buf1 = np.zeros((nphys, nocca*nvira), dtype=types.float64)
-        buf2 = np.zeros((nocca*nphys, nvira), dtype=types.float64)
-        buf3 = np.zeros((nphys, noccb*nvirb), dtype=types.float64)
-        
-        for i in range(mpi.rank, nocca, mpi.size):
-            xja_aa = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[0], out=buf1)
-            xia_aa = np.dot(ixq[0], qja[0][:,i*nvira:(i+1)*nvira], out=buf2)
-            xia_aa = _reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
-            xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[1], out=buf3)
-
-            x = util.dgemm(xja_aa, xja_aa.T, alpha=1, beta=1, c=x)
-            x = util.dgemm(xja_aa, xia_aa.T, alpha=-1, beta=1, c=x)
-            x = util.dgemm(xja_ab, xja_ab.T, alpha=1, beta=1, c=x)
-
-        x = mpi.reduce(x)
-
-        return x
+    #    return x
 
 
-    @staticmethod
-    def build_m(gf_occ, gf_vir, ixq, qja, b_inv):
-        ''' Builds the M array.
-        '''
+    #@staticmethod
+    #def build_m(gf_occ, gf_vir, ixq, qja, b_inv):
+    #    ''' Builds the M array.
+    #    '''
 
-        nphys = gf_occ[0].nphys
-        nocca, noccb = (gf_occ[0].naux, gf_occ[1].naux)
-        nvira, nvirb = (gf_vir[0].naux, gf_vir[1].naux)
+    #    nphys = gf_occ[0].nphys
+    #    nocca, noccb = (gf_occ[0].naux, gf_occ[1].naux)
+    #    nvira, nvirb = (gf_vir[0].naux, gf_vir[1].naux)
 
-        m = np.zeros((nphys, nphys), dtype=types.float64)
+    #    m = np.zeros((nphys, nphys), dtype=types.float64)
 
-        eo = (gf_occ[0].e, gf_occ[1].e)
-        ev = (gf_vir[0].e, gf_vir[1].e)
-        indices = mpi.tril_indices_rows(nocca)
-        a_factor = np.sqrt(1.0)
-        b_factor = np.sqrt(1.0)
+    #    eo = (gf_occ[0].e, gf_occ[1].e)
+    #    ev = (gf_vir[0].e, gf_vir[1].e)
+    #    indices = mpi.tril_indices_rows(nocca)
+    #    a_factor = np.sqrt(1.0)
+    #    b_factor = np.sqrt(1.0)
 
-        for i in indices[mpi.rank]:
-            xq_a = ixq[0][i*nphys:(i+1)*nphys]
-            qa_a = qja[0][:,i*nvira:(i+1)*nvira]
+    #    for i in indices[mpi.rank]:
+    #        xq_a = ixq[0][i*nphys:(i+1)*nphys]
+    #        qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
-            xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
-            xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
-            xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys, -1))
-            xja_ab = np.dot(xq_a, qja[1]).reshape((nphys, -1))
+    #        xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
+    #        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
+    #        xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys, -1))
+    #        xja_ab = np.dot(xq_a, qja[1]).reshape((nphys, -1))
 
-            ea = eo[0][i] + util.dirsum('i,a->ia', eo[0][:i], -ev[0]).ravel()
-            eb = eo[0][i] + util.dirsum('i,a->ia', eo[1], -ev[1]).ravel()
+    #        ea = eo[0][i] + util.dirsum('i,a->ia', eo[0][:i], -ev[0]).ravel()
+    #        eb = eo[0][i] + util.dirsum('i,a->ia', eo[1], -ev[1]).ravel()
 
-            va = a_factor * (xia_aa - xja_aa)
-            vb = b_factor * xja_ab
+    #        va = a_factor * (xia_aa - xja_aa)
+    #        vb = b_factor * xja_ab
 
-            qa = np.dot(b_inv.T, va)
-            qb = np.dot(b_inv.T, vb)
+    #        qa = np.dot(b_inv.T, va)
+    #        qb = np.dot(b_inv.T, vb)
 
-            m = util.dgemm(qa * ea[None], qa.T, c=m, beta=1)
-            m = util.dgemm(qb * eb[None], qb.T, c=m, beta=1)
+    #        m = util.dgemm(qa * ea[None], qa.T, c=m, beta=1)
+    #        m = util.dgemm(qb * eb[None], qb.T, c=m, beta=1)
 
-        m = mpi.reduce(m)
+    #    m = mpi.reduce(m)
 
-        return m
+    #    return m
 
 
     @staticmethod
@@ -302,15 +256,49 @@ class OptUAGF2(util.AuxMethod):
         qja = (qja_a, qja_b)
 
         def _build_part(s=slice(None)):
-            x = OptUAGF2.build_x((ixq[s][0],), qja[s], nphys, nocc[s], nvir[s])
-            b = np.linalg.cholesky(x).T
+            nocca, noccb = nocc[s]
+            nvira, nvirb = nvir[s]
+            ixq_a, ixq_b = ixq[s]
+            qja_a, qja_b = qja[s]
+            gf_occ_a, gf_occ_b = gf_occ[s]
+            gf_vir_a, gf_vir_b = gf_vir[s]
+
+            vv = np.zeros((nphys, nphys), dtype=types.float64)
+            vev = np.zeros((nphys, nphys), dtype=types.float64)
+
+            buf1 = np.zeros((nphys, nocca*nvira), dtype=types.float64)
+            buf2 = np.zeros((nocca*nphys, nvira), dtype=types.float64)
+            buf3 = np.zeros((nphys, noccb*nvirb), dtype=types.float64)
+
+            for i in range(mpi.rank, nocca, mpi.size):
+                xja_aa = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_a, out=buf1)
+                xia_aa = np.dot(ixq_a, qja_a[:,i*nvira:(i+1)*nvira], out=buf2)
+                xia_aa = _reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
+                xja_ab = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_b, out=buf3)
+
+                eja_aa = util.outer_sum([gf_occ_a.e[i] + gf_occ_a.e, -gf_vir_a.e]).flatten() 
+                eja_ab = util.outer_sum([gf_occ_a.e[i] + gf_occ_b.e, -gf_vir_b.e]).flatten()
+
+                vv = util.dgemm(xja_aa, xja_aa.T, alpha=1, beta=1, c=vv)
+                vv = util.dgemm(xja_aa, xia_aa.T, alpha=-1, beta=1, c=vv)
+                vv = util.dgemm(xja_ab, xja_ab.T, alpha=1, beta=1, c=vv)
+
+                vev = util.dgemm(xja_aa * eja_aa[None], xja_aa.T, alpha=1, beta=1, c=vev)
+                vev = util.dgemm(xja_aa * eja_aa[None], xia_aa.T, alpha=-1, beta=1, c=vev)
+                vev = util.dgemm(xja_ab * eja_ab[None], xja_ab.T, alpha=1, beta=1, c=vev)
+
+            vv = mpi.reduce(vv)
+            vev = mpi.reduce(vev)
+
+            b = np.linalg.cholesky(vv).T
             b_inv = np.linalg.inv(b)
-            m = OptUAGF2.build_m(gf_occ[s], gf_vir[s], (ixq[s][0],), qja[s], b_inv)
+
+            m = np.dot(np.dot(b_inv.T, vev), b_inv)
 
             e, c = util.eigh(m)
             c = np.dot(b.T, c[:nphys])
 
-            se = gf_occ[s][0].new(e, c)
+            se = gf_occ_a.new(e, c)
             
             return se
 
