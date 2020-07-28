@@ -10,7 +10,7 @@ import functools
 import ctypes
 
 from auxgf import util, aux
-from auxgf.util import types, log
+from auxgf.util import types, log, mpi
 #from auxgf.agf2.chempot import minimize, diag_fock_ext
 from auxgf.agf2.fock import fock_loop_rhf
 
@@ -150,6 +150,9 @@ class OptRAGF2(util.AuxMethod):
 
         self.options = _set_options(self.options, **kwargs)
 
+        if mpi.mpi is None:
+            log.warn('No MPI4Py installation detected, OptRAGF2 will therefore run in serial.')
+
         self.setup()
 
 
@@ -212,9 +215,122 @@ class OptRAGF2(util.AuxMethod):
             else:
                 out = np.zeros((naux, i*j), dtype=types.float64)
 
-        out = _ao2mo.nr_e2(eri, cij, sij, out=out, aosym=sym_in, mosym=sym_out)
+        for s in mpi.get_blocks(naux, maxblk, all_ranks=False):
+            out[s] = _ao2mo.nr_e2(eri[s], cij, sij, out=out[s], aosym=sym_in, mosym=sym_out)
+
+        out = mpi.reduce(out)
 
         return out
+
+
+    #@staticmethod
+    #def build_x(ixq, qja, nphys, nocc, nvir):
+    #    ''' Builds the X array, entirely equivalent to the zeroth-
+    #        order moment matrix of the self-energy.
+    #    '''
+
+    #    x = np.zeros((nphys, nphys), dtype=types.float64)
+    #    buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
+    #    buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
+
+    #    for i in range(mpi.rank, nocc, mpi.size):
+    #        xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
+    #        xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
+    #        xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+
+    #        x = util.dgemm(xja, xja.T, alpha=2, beta=1, c=x)
+    #        x = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
+
+    #    x = mpi.reduce(x)
+
+    #    return x
+
+
+    #@staticmethod
+    #def build_m(gf_occ, gf_vir, ixq, qja, b_inv):
+    #    ''' Builds the M array.
+    #    '''
+
+    #    nphys = gf_occ.nphys
+    #    nocc = gf_occ.naux
+    #    nvir = gf_vir.naux
+
+    #    m = np.zeros((nphys, nphys), dtype=types.float64)
+
+    #    eo, ev = gf_occ.e, gf_vir.e
+    #    indices = mpi.tril_indices_rows(nocc)
+    #    pos_factor = np.sqrt(0.5)
+    #    neg_factor = np.sqrt(1.5)
+
+    #    for i in indices[mpi.rank]:
+    #        xq = ixq[i*nphys:(i+1)*nphys]
+    #        qa = qja[:,i*nvir:(i+1)*nvir]
+
+    #        xja = np.dot(ixq[:i*nphys], qa)
+    #        xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+    #        xia = np.dot(xq, qja[:,:i*nvir])
+    #        xa = np.dot(xq, qa)
+
+    #        ea = eb = eo[i] + util.dirsum('i,a->ia', eo[:i], -ev).ravel()
+    #        ec = 2 * eo[i] - ev
+
+    #        va = neg_factor * (xia - xja)
+    #        vb = pos_factor * (xia + xja)
+    #        vc = xa
+
+    #        qa = np.dot(b_inv.T, va)
+    #        qb = np.dot(b_inv.T, vb)
+    #        qc = np.dot(b_inv.T, vc)
+
+    #        m = util.dgemm(qa * ea[None], qa.T, c=m, beta=1)
+    #        m = util.dgemm(qb * eb[None], qb.T, c=m, beta=1)
+    #        m = util.dgemm(qc * ec[None], qc.T, c=m, beta=1)
+
+    #    m = mpi.reduce(m)
+
+    #    return m
+
+
+    #@staticmethod
+    #def build_part(gf_occ, gf_vir, eri, sym_in='s2'):
+    #    ''' Builds the truncated occupied (or virtual) self-energy.
+
+    #    Parameters
+    #    ----------
+    #    gf_occ : Aux
+    #        Occupied (or virtual) Green's function
+    #    gf_vir : Aux
+    #        Virtual (or occupied) Green's function
+    #    eri : ndarray
+    #        Cholesky-decomposed DF ERI tensor
+    #    sym_in : str, optional
+    #        Symmetry of `eri`, default 's2'
+
+    #    Returns
+    #    -------
+    #    se : Aux
+    #        Occupied (or virtual) truncated self-energy
+    #    '''
+
+    #    syms = dict(sym_in=sym_in, sym_out='s1')
+    #    nphys = gf_occ.nphys
+    #    nocc = gf_occ.naux
+    #    nvir = gf_vir.naux
+
+    #    ixq = OptRAGF2.ao2mo(eri, gf_occ.v, np.eye(nphys), **syms).T
+    #    qja = OptRAGF2.ao2mo(eri, gf_occ.v, gf_vir.v, **syms)
+
+    #    x = OptRAGF2.build_x(ixq, qja, nphys, nocc, nvir)
+    #    b = np.linalg.cholesky(x).T
+    #    b_inv = np.linalg.inv(b)
+    #    m = OptRAGF2.build_m(gf_occ, gf_vir, ixq, qja, b_inv)
+
+    #    e, c = util.eigh(m)
+    #    c = np.dot(b.T, c[:nphys])
+
+    #    se = gf_occ.new(e, c)
+
+    #    return se
 
 
     @staticmethod
@@ -252,7 +368,7 @@ class OptRAGF2(util.AuxMethod):
         buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
         buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
 
-        for i in range(nocc):
+        for i in range(mpi.rank, nocc, mpi.size):
             xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
             xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
             xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
@@ -265,6 +381,9 @@ class OptRAGF2(util.AuxMethod):
 
             vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
             vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
+
+        vv = mpi.reduce(vv)
+        vev = mpi.reduce(vev)
 
         b = np.linalg.cholesky(vv).T
         b_inv = np.linalg.inv(b)
@@ -333,7 +452,18 @@ class OptRAGF2(util.AuxMethod):
     def energy_2body(self):
         self.solve_dyson()
 
-        e2b = aux.energy.energy_2body_aux(self.gf, self.se)
+        e2b = 0.0
+
+        for l in range(mpi.rank, self.gf.nocc, mpi.size):
+            vxl = self.gf.v[:,l]
+            vxk = self.se.v[:,self.se.nocc:]
+
+            dlk = 1.0 / (self.gf.e[l] - self.se.e[self.se.nocc:])
+
+            e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk, vxl, vxl, dlk)
+
+        e2b = 2.0 * np.ravel(e2b)[0]
+        e2b = mpi.reduce(e2b)
 
         log.write('E(2b)  = %.12f\n' % e2b, self.verbose)
 
@@ -374,9 +504,7 @@ class OptRAGF2(util.AuxMethod):
         args = (c_int(nphys), (c_int*4)(0, nphys, 0, nphys), lib.c_null_ptr(), c_int(0))
         buf = np.empty((2, maxblk, nphys, nphys))
 
-        for p0 in range(0, naux, maxblk):
-            s = slice(p0, min(p0 + maxblk, naux))
-
+        for s in mpi.get_blocks(naux, maxblk, all_ranks=False):
             eri1 = self.eri[s]
             naux_block = eri1.shape[0]
 
@@ -388,6 +516,9 @@ class OptRAGF2(util.AuxMethod):
 
             buf2 = lib.unpack_tril(eri1, out=buf[1])
             k = util.dgemm(buf1.reshape((-1, nphys)).T, buf2.reshape((-1, nphys)), c=k, beta=1)
+
+        j = mpi.reduce(j)
+        k = mpi.reduce(k)
 
         j = lib.unpack_tril(j).reshape(rdm1.shape)
         k = k.reshape(rdm1.shape)
