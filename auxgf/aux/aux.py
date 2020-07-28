@@ -10,6 +10,9 @@ from auxgf.util import types
 from auxgf.aux import merge, setrunc, gftrunc, fit, eig
 
 
+_get_v_dtype = lambda v: types.complex128 if np.iscomplexobj(v) else types.float64
+
+
 class Aux:
     ''' Class to contain a set of fully-causal auxiliary poles. These
         define a spectrum which consists of a frequency-dependent set
@@ -115,8 +118,8 @@ class Aux:
 
 
     def _setup(self, e, v, chempot=0.0):
-        self._ener = np.asarray(e, dtype=types.float64)
-        self._coup = np.ascontiguousarray(v, dtype=types.float64)
+        self._ener = np.array(e, order='C', copy=False, dtype=types.float64)
+        self._coup = np.array(v, order='C', copy=False, dtype=_get_v_dtype(v))
 
         self.chempot = 0.0 if None else chempot
 
@@ -343,14 +346,14 @@ class Aux:
 
         if out is None:
             e = self.e - chempot
-            out = np.block([[h_phys, self.v], [self.v.T, np.diag(e)]])
+            out = np.block([[h_phys, self.v], [self.v.conj().T, np.diag(e)]])
         else:
             sp = slice(None, self.nphys)
             sa = slice(self.nphys, None)
 
             out[sp,sp] = h_phys
             out[sp,sa] = self.v
-            out[sa,sp] = self.v.T
+            out[sa,sp] = self.v.conj().T
             out[sa,sa][np.diag_indices(self.naux)] = self.e - chempot
 
         return out
@@ -369,8 +372,8 @@ class Aux:
 
         mask = self.e < self.chempot
 
-        occ._ener = occ.e[mask]
-        occ._coup = np.ascontiguousarray(occ.v[:,mask])
+        occ._ener = np.array(occ.e[mask], order='C', copy=False, dtype=types.float64)
+        occ._coup = np.array(occ.v[:,mask], order='C', copy=False, dtype=self.v.dtype)
 
         return occ
 
@@ -388,8 +391,8 @@ class Aux:
         
         mask = self.e >= self.chempot
 
-        vir._ener = vir.e[mask]
-        vir._coup = np.ascontiguousarray(vir.v[:,mask])
+        vir._ener = np.array(vir.e[mask], order='C', copy=False, dtype=types.float64)
+        vir._coup = np.array(vir.v[:,mask], order='C', copy=False, dtype=self.v.dtype)
 
         return vir
 
@@ -408,8 +411,8 @@ class Aux:
 
         aux = self.copy()
 
-        aux._ener = aux.e[mask]
-        aux._coup = np.ascontiguousarray(aux.v[:,mask])
+        aux._ener = np.array(aux.e[mask], order='C', copy=False, dtype=types.float64)
+        aux._coup = np.array(aux.v[:,mask], order='C', copy=False, dtype=self.v.dtype)
 
         return aux
 
@@ -443,18 +446,20 @@ class Aux:
         if h_phys.shape != (self.nphys, self.nphys):
             raise ValueError('physical space of h_phys and couplings must match.')
 
+        dtype = np.result_type(self.v.dtype, vec.dtype)
+
         input_shape = vec.shape
         vec = vec.reshape((self.naux + self.nphys, -1))
 
         sp = slice(None, self.nphys)
         sa = slice(self.nphys, None)
 
-        out = np.zeros((vec.shape), dtype=types.float64)
+        out = np.zeros((vec.shape), dtype=dtype)
 
         out[sp]  = np.dot(h_phys, vec[sp])
         out[sp] += np.dot(self.v, vec[sa])
         
-        out[sa]  = np.dot(vec[sp].T, self.v).T
+        out[sa]  = np.dot(vec[sp].T, self.v).conj().T  #TODO: no .conj() on vec[sp].T right?
         out[sa] += (self.e[:,None] - chempot) * vec[sa]
 
         return out.reshape(input_shape)
@@ -703,8 +708,8 @@ class Aux:
         elif which == 'w,e':
             mask = np.lexsort((self.e, self.w))
 
-        self._ener = self._ener[mask]
-        self._coup = np.ascontiguousarray(self._coup[:,mask])
+        self._ener = np.array(self._ener[mask], order='C', copy=False, dtype=types.float64)
+        self._coup = np.array(self._coup[:,mask], order='C', copy=False, dtype=self.v.dtype)
 
 
     def copy(self):
@@ -795,8 +800,8 @@ class Aux:
         if chempot is None:
             chempot = self.chempot
 
-        e = np.asarray(e, dtype=types.float64)
-        v = np.ascontiguousarray(v, dtype=types.float64)
+        e = np.array(e, order='C', copy=False, dtype=types.float64)
+        v = np.array(v, order='C', copy=False, dtype=_get_v_dtype(v))
 
         aux = Aux(e, v, chempot=chempot)
 
@@ -835,8 +840,8 @@ class Aux:
         for item in self.__dict__.items():
             setattr(aux, *item)
 
-        aux._ener = e
-        aux._coup = np.ascontiguousarray(v)
+        aux._ener = np.array(e, order='C', copy=False, dtype=types.float64)
+        aux._coup = np.array(v, order='C', copy=False, dtype=_get_v_dtype(v))
 
         return aux
 
