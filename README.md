@@ -20,15 +20,15 @@ Requirements
 Features
 --------
 
-* Object-oriented implementation of an auxiliary space
-* Auxiliary second-order Green's function perturbation theory for restricted (RAGF2) and unrestricted (UAGF2) references
-* Auxiliary second-order Møller-Plesset perturbation theory for restricted (RAMP2) and unrestricted (UAMP2) references
-* Optimised MPI Parallel, density-fitted RAGF2(None,0) calculations (OptRAGF2)
-* Spin-component-scaled SCS-RAGF2 and SCS-UAGF2 calculations, along with SCS-MP2 via zeroth iteration
-* Second-order algebraic diagrammatic construction for restricted (RADC2) references
-* Spin-component-scaled SCS-RADC2 calculations
-* Auxiliary GW calculations for restricted (RAGWA) references, with a number of self-consistency options
-* Interface to many other PySCF methods
+* Object-oriented implementation of auxiliary space.
+* Auxiliary second-order Green's function perturbation theory for restricted (RAGF2) and unrestricted (UAGF2) references.
+* Auxiliary second-order Møller-Plesset perturbation theory for restricted (RAMP2) and unrestricted (UAMP2) references.
+* Second-order algebraic diagrammatic construction for restricted (RADC2) references.
+* Auxiliary GW approximation for restricted (RAGWA) references, with a number of self-consistency options.
+* Optimised AGF2(None,0) codes for density-fitted restricted (OptRAGF2) and unrestricted (OptUAGF2) references.
+* Spin-component scaling (SCS) support for all auxiliary methods.
+* MPI parallel codes for OptRAGF2, OptUAGF2 and RADC2.
+* Interface to many other PySCF methods.
 
 Installation
 ------------
