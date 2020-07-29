@@ -613,7 +613,7 @@ def dirsum(key, *arrays): # pragma: no cover
     return out
 
 
-def bypass_empty_ndarray(array, func):
+def bypass_empty_ndarray(array, func, **kwargs):
     ''' If `array` is empty, return `np.nan`, else perform the function
         `func` on `array` and return result.
 
@@ -640,10 +640,10 @@ def bypass_empty_ndarray(array, func):
     if array.size == 0:
         return np.nan
     else:
-        return func(array)
+        return func(array, **kwargs)
 
-def amax(x): return bypass_empty_ndarray(x, np.max)
-def amin(x): return bypass_empty_ndarray(x, np.min)
+def amax(x, **kwargs): return bypass_empty_ndarray(x, np.max, **kwargs)
+def amin(x, **kwargs): return bypass_empty_ndarray(x, np.min, **kwargs)
 
 
 def sparsity(array, tol=1e-14):
