@@ -55,10 +55,10 @@ class KnownValues(unittest.TestCase):
         self.assertTrue(self.rhf_df.eri_mo.ndim == 3)
 
     def test_from_pyscf(self):
-        self.rhf_fp = self.rhf.from_pyscf(self.rhf._pyscf)
-        self.rhf_df_fp = self.rhf_df.from_pyscf(self.rhf_df._pyscf)
-        self.assertAlmostEqual(self.rhf.e_tot, self.rhf_fp.e_tot, 10)
-        self.assertAlmostEqual(self.rhf_df.e_tot, self.rhf_df_fp.e_tot, 10)
+        rhf_fp = self.rhf.from_pyscf(self.rhf._pyscf)
+        rhf_df_fp = self.rhf_df.from_pyscf(self.rhf_df._pyscf)
+        self.assertAlmostEqual(self.rhf.e_tot, rhf_fp.e_tot, 10)
+        self.assertAlmostEqual(self.rhf_df.e_tot, rhf_df_fp.e_tot, 10)
         
 
 if __name__ == '__main__':
