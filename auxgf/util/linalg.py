@@ -16,7 +16,7 @@ except ImportError:
 
 from auxgf.util import types, mkl, log, mpi
 
-einsum = 'tblis'  # 'numpy', 'pyscf', 'tblis'
+einsum = 'numpy'  # 'numpy', 'pyscf', 'tblis'
 
 
 ''' Wrapper for einsum: choose between implementations, and clear up
@@ -126,6 +126,55 @@ def dgemm(a, b, c=None, alpha=1.0, beta=0.0):
     c, tc = _reorder_fortran(c)
 
     c = blas.dgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, trans_a=not tb, trans_b=not ta)
+
+    c, tc = _reorder_c(c)
+
+    return c
+
+
+def zgemm(a, b, c=None, alpha=1.0+0.0j, beta=0.0+0.0j):
+    ''' Performs zgemm in Fortran memory alignment without copying.
+        Input matrix should be contiguous (either F or C).
+
+    Parameters
+    ----------
+    a : array
+        input matrix a
+    b : array
+        input matrix b
+    c : array, optional
+        output matrix c, if None then it is allocated inside the
+        function, default None
+    alpha : complex, optional
+        scalar factor for matrix a
+    beta : float, optional
+        scalar factor for matrix c
+
+    Returns
+    -------
+    c : ndarray
+        output matrix
+    '''
+
+    if (not _is_contiguous(a)) or (not _is_contiguous(b)):
+        log.warn('ZGEMM called on non-contiguous data')
+
+    m, k = a.shape
+    n = b.shape[1]
+    assert k == b.shape[0]
+
+    a, ta = _reorder_fortran(a)
+    b, tb = _reorder_fortran(b)
+
+    if c is None:
+        c = np.zeros((m, n), dtype=np.complex128, order='C')
+
+    if m == 0 or n == 0 or k == 0:
+        return c
+
+    c, tc = _reorder_fortran(c)
+
+    c = blas.zgemm(alpha=alpha, a=b, b=a, c=c, beta=beta, trans_a=not tb, trans_b=not ta)
 
     c, tc = _reorder_c(c)
 
@@ -391,7 +440,7 @@ def is_hermitian(array):
         array is Hermitian
     '''
 
-    herm = np.allclose(array, array.T.conj())
+    herm = np.allclose(array, array.swapaxes(-2,-1).conj())
 
     return herm
 
@@ -696,3 +745,8 @@ def iter_depth(x):
             break
 
     return n
+
+
+def complex_sum(array, **kwargs):
+    out = np.sum(array, **kwargs)
+    return out.real + out.imag
