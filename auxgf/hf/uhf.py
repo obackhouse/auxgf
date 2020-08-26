@@ -120,6 +120,9 @@ class UHF(hf.HF):
         if not getattr(hf, 'with_df', False):
             _hf._eri_ao = util.restore(1, _hf.mol._pyscf.intor('int2e'), hf.mol.nao)
         else:
+            if hf.with_df._cderi is None:
+                hf.with_df.run()
+
             _hf._eri_ao = lib.unpack_tril(hf.with_df._cderi)
         
         return _hf
