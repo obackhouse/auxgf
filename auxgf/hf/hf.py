@@ -16,8 +16,8 @@ class HF:
     ----------
     mol : Molecule
         object defining the molecule
-    method : str, optional
-        HF type {'rhf', 'uhf', 'rohf', 'ghf'} (default 'rhf')
+    method : callable, optional
+        pyscf method (default RHF for closed shell, UHF for open shell)
     disable_omp : bool, optional
         disable OpenMP parallelism (default True)
     check_stability : bool, optional
@@ -74,6 +74,8 @@ class HF:
         electronic repulsion integrals in atomic orbital basis
     eri_mo : ndarray
         electronic repulsion integrals in molecular orbital basis
+    converged : bool
+        whether or not the calculation converged
 
     Methods
     -------
@@ -105,7 +107,7 @@ class HF:
 
         if not self._pyscf.converged:
             if mpi.rank:
-                log.warn('%s did not converged.' % self.__class__.__name__)
+                log.warn('%s did not converge.' % self.__class__.__name__)
 
         return self
 
@@ -149,7 +151,7 @@ class HF:
     
     @property
     def nao(self):
-        return self.occ.shape[-1]
+        return self.mol.nao
 
     @property
     def nocc(self):
@@ -225,10 +227,8 @@ class HF:
 
     @property
     def rdm1_mo(self):
-        c = self.c
-        s = self.ovlp_ao
-        d = self.rdm1_ao
-        return util.einsum('...ba,cb,...cd,de,...ef->...af', c, s, d, s, c)
+        sds = util.ao2mo(self.rdm1_ao, self.ovlp_ao, self.ovlp_ao)
+        return util.ao2mo(sds, self.c, self.c)
 
     @property
     def eri_ao(self):
@@ -241,6 +241,9 @@ class HF:
         else:
             return util.ao2mo(self.eri_ao, self.c, self.c)
 
-    def get_eri_mo(self, masks):
-        coeffs = [self.c[:,mask] for mask in masks]
+    def get_eri(self, coeffs):
         return util.ao2mo(self.eri_ao, *coeffs)
+
+    @property
+    def converged(self):
+        return self._pyscf.converged
