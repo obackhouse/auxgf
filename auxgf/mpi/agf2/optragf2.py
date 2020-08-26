@@ -475,6 +475,7 @@ class OptRAGF2(util.AuxMethod):
         etot = self.e_1body + self.e_2body
 
         log.write('E(tot) = %.12f\n' % etot, self.verbose)
+        log.write('E(cor) = %.12f\n' % (etot - self.e_hf), self.verbose)
 
         return etot
 
