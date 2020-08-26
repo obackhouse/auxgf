@@ -30,12 +30,11 @@ def energy_2body_aux(gf, se, both_sides=False):
     #TODO in C
 
     if isinstance(se, (tuple, list)):
+        n = len(se)
         if isinstance(gf, (tuple, list)):
-            return sum([energy_2body_aux(gf[i], se[i], both_sides=both_sides)
-                        for i in range(len(se))]) / len(se)
+            return sum([energy_2body_aux(gf[i], se[i], both_sides=both_sides) for i in range(n)]) / n
         else:
-            return sum([energy_2body_aux(gf, se[i], both_sides=both_sides)
-                        for i in range(len(se))]) / len(se)
+            return sum([energy_2body_aux(gf, se[i], both_sides=both_sides) for i in range(n)]) / n
 
     nphys = se.nphys
 
@@ -47,7 +46,7 @@ def energy_2body_aux(gf, se, both_sides=False):
 
         dlk = 1.0 / (gf.e[l] - se.e[se.nocc:])
 
-        e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk, vxl, vxl, dlk)
+        e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk.conj(), vxl, vxl.conj(), dlk)
 
     if both_sides:
         for l in range(gf.nocc, gf.naux):
@@ -56,11 +55,11 @@ def energy_2body_aux(gf, se, both_sides=False):
 
             dlk = -1.0 / (gf.e[l] - se.e[:se.nocc])
 
-            e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk, vxl, vxl, dlk)
+            e2b += util.einsum('xk,yk,x,y,k->', vxk, vxk.conj(), vxl, vxl.conj(), dlk)
     else:
         e2b *= 2.0
 
-    return np.ravel(e2b)[0]
+    return np.ravel(e2b.real)[0]
 
 
 def energy_mp2_aux(mo, se, both_sides=False):
@@ -86,12 +85,11 @@ def energy_mp2_aux(mo, se, both_sides=False):
     '''
 
     if isinstance(se, (tuple, list)):
-        if np.asarray(mo).ndim == 2:
-            return sum([energy_mp2_aux(mo[i], se[i], both_sides=both_sides)
-                        for i in range(len(se))]) / len(se)
+        n = len(se)
+        if util.iter_depth(mo) == 2:
+            return sum([energy_mp2_aux(mo[i], se[i], both_sides=both_sides) for i in range(n)]) / n
         else:
-            return sum([energy_mp2_aux(mo, se[i], both_sides=both_sides)
-                        for i in range(len(se))]) / len(se)
+            return sum([energy_mp2_aux(mo, se[i], both_sides=both_sides) for i in range(n)]) / n
 
     nphys = se.nphys
 
@@ -101,13 +99,13 @@ def energy_mp2_aux(mo, se, both_sides=False):
     vxk = se.v_vir[occ]
     dxk = 1.0 / util.outer_sum([mo[occ], -se.e_vir])
 
-    e2b = util.einsum('xk,xk->', vxk**2, dxk)
+    e2b = util.einsum('xk,xk,xk->', vxk, vxk.conj(), dxk)
 
     if both_sides:
         vxk = se.v_occ[vir]
         dxk = -1.0 / util.outer_sum([mo[vir], -se.e_occ])
 
-        e2b += util.einsum('xk,xk->', vxk**2, dxk)
+        e2b += util.einsum('xk,xk,xk->', vxk, vxk.conj(), dxk)
         e2b *= 0.5
 
-    return np.ravel(e2b)[0]
+    return np.ravel(e2b.real)[0]

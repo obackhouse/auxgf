@@ -39,7 +39,7 @@ def find_chempot(nphys, nelec, h, occupancy=2.0):
     sum_prv = 0.0
 
     for i in range(nqmo):
-        n = occupancy * np.dot(v[:nphys,i].T, v[:nphys,i])
+        n = occupancy * np.dot(v[:nphys,i].conj().T, v[:nphys,i]).real
         sum_prv, sum_cur = sum_cur, sum_cur + n
 
         if i > 0:

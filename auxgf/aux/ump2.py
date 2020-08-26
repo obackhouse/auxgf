@@ -68,7 +68,7 @@ def make_coups_inner(v, wtol=1e-12):
     if v.ndim == 1:
         v = v[:,None]
 
-    s = np.dot(v.T, v)
+    s = np.dot(v.conj().T, v)
 
     #TODO: lib.dsyevd_2x2
 
@@ -77,7 +77,7 @@ def make_coups_inner(v, wtol=1e-12):
     mask = w >= wtol
 
     coup = np.dot(v, coup[:,mask])
-    coup /= np.sqrt(np.sum(coup * coup, axis=0))
+    coup /= np.sqrt(util.complex_sum(coup * coup, axis=0))
     coup *= np.sqrt(w[mask])
 
     return coup
@@ -109,9 +109,9 @@ def make_coups_outer(v, s=None, wtol=1e-12):
         v = v[:,None]
 
     if s is None:
-        m = np.dot(v, v.T)
+        m = np.dot(v, v.conj().T)
     else:
-        m = np.dot(s * v, v.T)
+        m = np.dot(s * v, v.conj().T)
 
     w, coup = util.eigh(m)
 
@@ -162,7 +162,7 @@ def build_ump2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     npoles += nvirb * nocca * noccb
 
     e = np.zeros((npoles), dtype=types.float64)
-    v = np.zeros((nphys, npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=xija[0].dtype)
 
     a_factor = np.sqrt(ss_factor)
     b_factor = np.sqrt(os_factor)
@@ -188,7 +188,7 @@ def build_ump2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
 
         n0 += nja_a + nja_b
 
-    mask = np.sum(v*v, axis=0) >= wtol
+    mask = np.absolute(util.complex_sum(v*v, axis=0)) >= wtol
     e = e[mask]
     v = v[:,mask]
 
@@ -494,8 +494,8 @@ def build_ump2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman
         di_a = 1.0 / util.outer_sum([w, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
         di_b = 1.0 / util.outer_sum([w, -ei_b + get_s(ei_b) * grid.eta * 1.0j])
 
-        se += util.einsum('wk,xk,yk->wxy', di_a, vi_a, vi_a - vip_a)
-        se += util.einsum('wk,xk,yk->wxy', di_b, vi_b, vi_b)
+        se += util.einsum('wk,xk,yk->wxy', di_a, vi_a, (vi_a - vip_a).conj())
+        se += util.einsum('wk,xk,yk->wxy', di_b, vi_b, (vi_b).conj())
 
     return se
 

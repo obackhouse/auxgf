@@ -77,7 +77,7 @@ def build_dfrmp2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     npoles = nocc * nocc * nvir
 
     e = np.zeros((npoles), dtype=types.float64)
-    v = np.zeros((nphys, npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=ixq.dtype)
 
     pos_factor = np.sqrt(0.5 * os_factor)
     neg_factor = np.sqrt(0.5 * os_factor + ss_factor)
@@ -96,10 +96,10 @@ def build_dfrmp2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
         xq = ixq[i*nphys:(i+1)*nphys]
         qa = qja[:,i*nvir:(i+1)*nvir]
 
-        xja = np.dot(ixq[:i*nphys], qa)
+        xja = np.dot(ixq[:i*nphys].conj(), qa)
         xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
-        xia = np.dot(xq, qja[:,:i*nvir]).reshape((nphys, -1))
-        xa = np.dot(xq, qa)
+        xia = np.dot(xq.conj(), qja[:,:i*nvir]).reshape((nphys, -1))
+        xa = np.dot(xq.conj(), qa)
 
         e[am] = e[bm] = eo[i] + util.dirsum('i,a->ia', eo[:i], -ev).ravel()
         e[cm] = 2 * eo[i] - ev
@@ -110,7 +110,7 @@ def build_dfrmp2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
 
         n0 += nja * 2 + nvir
 
-    mask = np.sum(v*v, axis=0) >= wtol
+    mask = np.absolute(util.complex_sum(v*v, axis=0)) >= wtol
     e = e[mask]
     v = v[:,mask]
 
@@ -270,10 +270,10 @@ def build_dfrmp2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
         xq = ixq[i*nphys:(i+1)*nphys]
         qa = qja[:,i*nvir:(i+1)*nvir]
 
-        xja = np.dot(ixq[:i*nphys], qa)
+        xja = np.dot(ixq[:i*nphys].conj(), qa)
         xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
-        xia = np.dot(xq, qja[:,:i*nvir]).reshape((nphys, -1))
-        xa = np.dot(xq, qa)
+        xia = np.dot(xq.conj(), qja[:,:i*nvir]).reshape((nphys, -1))
+        xa = np.dot(xq.conj(), qa)
 
         ea = eb = eo[i] + util.dirsum('i,a->ia', eo[:i], -ev).ravel()
         ec = 2 * eo[i] - ev
@@ -385,13 +385,13 @@ def build_dfrmp2_part_se_direct(eo, ev, ixq, qja, grid, chempot=0.0, ordering='f
     for i in range(nocc):
         ei = eo[i] + eov - chempot
 
-        vi = np.dot(ixq[i*nphys:(i+1)*nphys], qja).reshape((nphys, -1))
-        vip = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir])
+        vi = np.dot(ixq[i*nphys:(i+1)*nphys].conj(), qja).reshape((nphys, -1))
+        vip = np.dot(ixq.conj(), qja[:,i*nvir:(i+1)*nvir])
         vip = _reshape_internal(vip, (nocc, nphys, -1), (0,1), (nphys, -1))
 
         di = 1.0 / util.outer_sum([w, -ei + get_s(ei) * grid.eta * 1.0j])
 
-        se += util.einsum('wk,xk,yk->wxy', di, vi, 2*vi-vip)
+        se += util.einsum('wk,xk,yk->wxy', di, vi, (2*vi-vip).conj())
 
     return se
 

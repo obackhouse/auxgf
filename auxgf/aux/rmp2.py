@@ -65,7 +65,7 @@ def make_coups_inner(v, wtol=1e-12):
     mask = w >= wtol
 
     coup = np.dot(v, coup[:,mask])
-    coup /= np.sqrt(np.sum(coup * coup, axis=0))
+    coup /= np.sqrt(util.complex_sum(coup * coup, axis=0))
     coup *= np.sqrt(w[mask])
 
     return coup
@@ -97,9 +97,9 @@ def make_coups_outer(v, s=None, wtol=1e-12):
         v = v[:,None]
 
     if s is None:
-        m = np.dot(v, v.T)
+        m = np.dot(v, v.conj().T)
     else:
-        m = np.dot(s * v, v.T)
+        m = np.dot(s * v, v.conj().T)
 
     w, coup = util.eigh(m)
 
@@ -147,7 +147,7 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
     npoles = nocc * nocc * nvir
 
     e = np.zeros((npoles), dtype=types.float64)
-    v = np.zeros((nphys, npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=xija.dtype)
 
     pos_factor = np.sqrt(0.5 * os_factor)
     neg_factor = np.sqrt(0.5 * os_factor + ss_factor)
@@ -174,7 +174,7 @@ def build_rmp2_part(eo, ev, xija, wtol=1e-12, ss_factor=1.0, os_factor=1.0):
 
         n0 += nja * 2 + nvir
 
-    mask = np.sum(v*v, axis=0) >= wtol
+    mask = np.absolute(util.complex_sum(v*v, axis=0)) >= wtol
     e = e[mask]
     v = v[:,mask]
 
@@ -423,7 +423,7 @@ def build_rmp2_part_se_direct(eo, ev, xija, grid, chempot=0.0, ordering='feynman
 
         di = 1.0 / util.outer_sum([w, -ei + get_s(ei) * grid.eta * 1.0j])
 
-        se += util.einsum('wk,xk,yk->wxy', di, vi, 2*vi-vip)
+        se += util.einsum('wk,xk,yk->wxy', di, vi, (2*vi-vip).conj())
 
     return se
 

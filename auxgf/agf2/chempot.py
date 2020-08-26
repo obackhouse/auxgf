@@ -103,12 +103,12 @@ def gradient(x, se, fock, nelec, occupancy=2.0, buf=None, return_val=False):
     occ = slice(None, nocc)
     vir = slice(nocc, None)
 
-    h_1 = -np.dot(v[aux,vir].T, v[aux,occ])
+    h_1 = -np.dot(v[aux,vir].conj().T, v[aux,occ])
     z_ai = -h_1 / util.dirsum('i,a->ai', w[occ], -w[vir])
     c_occ = np.dot(v[phys,vir], z_ai)
 
-    rdm1 = np.dot(v[phys,occ], c_occ.T) * 4
-    ne = np.trace(rdm1)
+    rdm1 = np.dot(v[phys,occ], c_occ.conj().T) * 4
+    ne = np.trace(rdm1).real
 
     d = 2 * error * ne
 

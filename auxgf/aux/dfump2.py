@@ -94,7 +94,7 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
     npoles += nvirb * nocca * noccb
 
     e = np.zeros((npoles), dtype=types.float64)
-    v = np.zeros((nphys, npoles), dtype=types.float64)
+    v = np.zeros((nphys, npoles), dtype=ixq[0].dtype)
 
     a_factor = np.sqrt(ss_factor)
     b_factor = np.sqrt(os_factor)
@@ -114,13 +114,13 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
         xq_a = ixq[0][i*nphys:(i+1)*nphys]
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
-        xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
+        xja_aa = np.dot(ixq[0][:i*nphys].conj(), qa_a)
         xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
-        xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys,-1))
-        xja_ab = np.dot(xq_a, qja[1]).reshape((nphys,-1))
+        xia_aa = np.dot(xq_a.conj(), qja[0][:,:i*nvira]).reshape((nphys,-1))
+        xja_ab = np.dot(xq_a.conj(), qja[1]).reshape((nphys,-1))
 
-        xija_aa = np.dot(ixq[0], qja[0]).reshape((nocca, nphys, nocca, nvira)).swapaxes(0,1)
-        xija_ab = np.dot(ixq[0], qja[1]).reshape((nocca, nphys, noccb, nvirb)).swapaxes(0,1)
+        xija_aa = np.dot(ixq[0].conj(), qja[0]).reshape((nocca, nphys, nocca, nvira)).swapaxes(0,1)
+        xija_ab = np.dot(ixq[0].conj(), qja[1]).reshape((nocca, nphys, noccb, nvirb)).swapaxes(0,1)
         assert np.allclose(xia_aa, xija_aa[:,i,:i].reshape((nphys, -1)))
         assert np.allclose(xja_aa, xija_aa[:,:i,i].reshape((nphys, -1)))
         assert np.allclose(xja_ab, xija_ab[:,i].reshape((nphys, -1)))
@@ -133,7 +133,7 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
 
         n0 += nja_a + nja_b
 
-    mask = np.sum(v*v, axis=0) >= wtol
+    mask = np.absolute(util.complex_sum(v*v, axis=0)) >= wtol
     e = e[mask]
     v = v[:,mask]
 
@@ -337,10 +337,10 @@ def build_dfump2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
         xq_a = ixq[0][i*nphys:(i+1)*nphys]
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
-        xja_aa = np.dot(ixq[0][:i*nphys], qa_a)
+        xja_aa = np.dot(ixq[0][:i*nphys].conj(), qa_a)
         xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
-        xia_aa = np.dot(xq_a, qja[0][:,:i*nvira]).reshape((nphys,-1))
-        xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys], qja[1]).reshape((nphys,-1))
+        xia_aa = np.dot(xq_a.conj(), qja[0][:,:i*nvira]).reshape((nphys,-1))
+        xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys].conj(), qja[1]).reshape((nphys,-1))
 
         ea = eo[0][i] + np.subtract.outer(eo[0][jm], ev[0]).flatten()
         eb = eo[0][i] + np.subtract.outer(eo[1], ev[1]).flatten()
@@ -467,16 +467,16 @@ def build_dfump2_part_se_direct(eo, ev, ixq, qja, grid, chempot=0.0, ordering='f
 
         xq_a = ixq[0][i*nphys:(i+1)*nphys]
 
-        vi_a = np.dot(xq_a, qja[0]).reshape((nphys, -1))
-        vi_b = np.dot(xq_a, qja[1]).reshape((nphys, -1))
-        vip_a = np.dot(ixq[0], qja[0][:,i*nvira:(i+1)*nvira])
+        vi_a = np.dot(xq_a.conj(), qja[0]).reshape((nphys, -1))
+        vi_b = np.dot(xq_a.conj(), qja[1]).reshape((nphys, -1))
+        vip_a = np.dot(ixq[0].conj(), qja[0][:,i*nvira:(i+1)*nvira])
         vip_a = _reshape_internal(vip_a, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
 
         di_a = 1.0 / util.outer_sum([w, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
         di_b = 1.0 / util.outer_sum([w, -ei_b + get_s(ei_b) * grid.eta * 1.0j])
 
-        se += util.einsum('wk,xk,yk->wxy', di_a, vi_a, vi_a - vip_a)
-        se += util.einsum('wk,xk,yk->wxy', di_b, vi_b, vi_b)
+        se += util.einsum('wk,xk,yk->wxy', di_a, vi_a, (vi_a - vip_a).conj())
+        se += util.einsum('wk,xk,yk->wxy', di_b, vi_b, vi_b.conj())
 
     return se
 
