@@ -4,11 +4,15 @@
 import numpy as np
 import sys
 import warnings
+import inspect
 from collections import OrderedDict
 
 
+warnings.formatwarning = lambda *args, **kwargs: '%s\n' % (args[0])
+
 def warn(msg):
-    warnings.warn('WARNING: %s' % msg)
+    caller = inspect.getframeinfo(inspect.stack()[1][0])
+    warnings.warn('WARNING (%s: %s): %s' % (caller.filename, caller.lineno, msg))
 
 
 def write(s, verbose=1):
