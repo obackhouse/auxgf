@@ -131,7 +131,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
                 rmsd = np.sqrt(np.sum((rdm - rdm_prev)**2))
 
-                if rmsd < options['dtol']:
+                if rmsd < dtol:
                     break
 
             rdm_prev = rdm.copy()
