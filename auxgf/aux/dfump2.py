@@ -10,7 +10,7 @@ from auxgf.util import types
 
 _is_tuple = lambda x : isinstance(x, (tuple, list, np.ndarray))
 
-_reshape_internal = lambda x, s1, swap, s2 : \
+util.reshape_internal = lambda x, s1, swap, s2 : \
                            x.reshape(s1).swapaxes(*swap).reshape(s2)
 
 
@@ -115,7 +115,7 @@ def build_dfump2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
         xja_aa = np.dot(ixq[0][:i*nphys].conj(), qa_a)
-        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
+        xja_aa = util.reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
         xia_aa = np.dot(xq_a.conj(), qja[0][:,:i*nvira]).reshape((nphys,-1))
         xja_ab = np.dot(xq_a.conj(), qja[1]).reshape((nphys,-1))
 
@@ -249,26 +249,26 @@ def build_dfump2_iter(se, h_phys, eri_mo, **kwargs):
     eye = np.eye(nphys)
 
     ixq_a = util.ao2mo_df(eri_mo[0], co[0], eye)
-    ixq_a = _reshape_internal(ixq_a, (-1, nocca*nphys), (0,1), (nocca, nphys, -1))
+    ixq_a = util.reshape_internal(ixq_a, (-1, nocca*nphys), (0,1), (nocca, nphys, -1))
     qja_a = util.ao2mo_df(eri_mo[0], co[0], cv[0])
     qja_b = util.ao2mo_df(eri_mo[1], co[1], cv[1])
     eija_a, vija_a = build_dfump2_part(eo, ev, (ixq_a,), (qja_a, qja_b), **kwargs)
     del ixq_a
 
     ixq_b = util.ao2mo_df(eri_mo[1], co[1], eye)
-    ixq_b = _reshape_internal(ixq_b, (-1, noccb*nphys), (0,1), (noccb, nphys, -1))
+    ixq_b = util.reshape_internal(ixq_b, (-1, noccb*nphys), (0,1), (noccb, nphys, -1))
     eija_b, vija_b = build_dfump2_part(eo[::-1], ev[::-1], (ixq_b,), (qja_b, qja_a), **kwargs)
     del ixq_b, qja_a, qja_b
 
     axq_a = util.ao2mo_df(eri_mo[0], cv[0], eye)
-    axq_a = _reshape_internal(axq_a, (-1, nvira*nphys), (0,1), (nvira, nphys, -1))
+    axq_a = util.reshape_internal(axq_a, (-1, nvira*nphys), (0,1), (nvira, nphys, -1))
     qbi_a = util.ao2mo_df(eri_mo[0], cv[0], co[0])
     qbi_b = util.ao2mo_df(eri_mo[1], cv[1], co[1])
     eabi_a, vabi_a = build_dfump2_part(ev, eo, (axq_a,), (qbi_a, qbi_b), **kwargs)
     del axq_a
 
     axq_b = util.ao2mo_df(eri_mo[1], cv[1], eye)
-    axq_b = _reshape_internal(axq_b, (-1, nvirb*nphys), (0,1), (nvirb, nphys, -1))
+    axq_b = util.reshape_internal(axq_b, (-1, nvirb*nphys), (0,1), (nvirb, nphys, -1))
     eabi_b, vabi_b = build_dfump2_part(ev[::-1], eo[::-1], (axq_b,), (qbi_b, qbi_a), **kwargs)
     del axq_b, qbi_a, qbi_b
 
@@ -338,7 +338,7 @@ def build_dfump2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
         qa_a = qja[0][:,i*nvira:(i+1)*nvira]
 
         xja_aa = np.dot(ixq[0][:i*nphys].conj(), qa_a)
-        xja_aa = _reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
+        xja_aa = util.reshape_internal(xja_aa, (i, nphys, nvira), (0,1), (nphys, i*nvira))
         xia_aa = np.dot(xq_a.conj(), qja[0][:,:i*nvira]).reshape((nphys,-1))
         xja_ab = np.dot(ixq[0][i*nphys:(i+1)*nphys].conj(), qja[1]).reshape((nphys,-1))
 
@@ -470,7 +470,7 @@ def build_dfump2_part_se_direct(eo, ev, ixq, qja, grid, chempot=0.0, ordering='f
         vi_a = np.dot(xq_a.conj(), qja[0]).reshape((nphys, -1))
         vi_b = np.dot(xq_a.conj(), qja[1]).reshape((nphys, -1))
         vip_a = np.dot(ixq[0].conj(), qja[0][:,i*nvira:(i+1)*nvira])
-        vip_a = _reshape_internal(vip_a, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
+        vip_a = util.reshape_internal(vip_a, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
 
         di_a = 1.0 / util.outer_sum([w, -ei_a + get_s(ei_a) * grid.eta * 1.0j])
         di_b = 1.0 / util.outer_sum([w, -ei_b + get_s(ei_b) * grid.eta * 1.0j])

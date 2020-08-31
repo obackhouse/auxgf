@@ -51,7 +51,7 @@ def _set_options(options, **kwargs):
     return options
 
 
-_reshape_internal = lambda x, s1, swap, s2 : \
+util.reshape_internal = lambda x, s1, swap, s2 : \
                            x.reshape(s1).swapaxes(*swap).reshape(s2)
 
 _fdrv = functools.partial(_ao2mo.libao2mo.AO2MOnr_e2_drv, 
@@ -62,7 +62,7 @@ to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
 
 
 class OptRAGF2(util.AuxMethod):
-    ''' Restricted auxiliary GF2 method for (None,1) and DF integrals.
+    ''' Restricted auxiliary GF2 method for (None,0) and DF integrals.
 
     Parameters
     ----------
@@ -236,7 +236,7 @@ class OptRAGF2(util.AuxMethod):
     #    for i in range(mpi.rank, nocc, mpi.size):
     #        xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
     #        xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-    #        xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+    #        xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
     #        x = util.dgemm(xja, xja.T, alpha=2, beta=1, c=x)
     #        x = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=x)
@@ -267,7 +267,7 @@ class OptRAGF2(util.AuxMethod):
     #        qa = qja[:,i*nvir:(i+1)*nvir]
 
     #        xja = np.dot(ixq[:i*nphys], qa)
-    #        xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+    #        xja = util.reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
     #        xia = np.dot(xq, qja[:,:i*nvir])
     #        xa = np.dot(xq, qa)
 
@@ -371,7 +371,7 @@ class OptRAGF2(util.AuxMethod):
         for i in range(mpi.rank, nocc, mpi.size):
             xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
             xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+            xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
             eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
             eja = eja.ravel()

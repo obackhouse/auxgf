@@ -8,7 +8,7 @@ from auxgf import util, aux
 from auxgf.util import types
 
 
-_reshape_internal = lambda x, s1, swap, s2 : \
+util.reshape_internal = lambda x, s1, swap, s2 : \
                            x.reshape(s1).swapaxes(*swap).reshape(s2)
 
 def _parse_rhf(e, qpx, qyz, chempot):
@@ -97,7 +97,7 @@ def build_dfrmp2_part(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_factor=1.0
         qa = qja[:,i*nvir:(i+1)*nvir]
 
         xja = np.dot(ixq[:i*nphys].conj(), qa)
-        xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+        xja = util.reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
         xia = np.dot(xq.conj(), qja[:,:i*nvir]).reshape((nphys, -1))
         xa = np.dot(xq.conj(), qa)
 
@@ -202,13 +202,13 @@ def build_dfrmp2_iter(se, h_phys, eri_mo, **kwargs):
     eye = np.eye(se.nphys)
 
     ixq = util.ao2mo_df(eri_mo, co, eye)
-    ixq = _reshape_internal(ixq, (-1, nocc*nphys), (0,1), (nocc, nphys, -1))
+    ixq = util.reshape_internal(ixq, (-1, nocc*nphys), (0,1), (nocc, nphys, -1))
     qja = util.ao2mo_df(eri_mo, co, cv)
     eija, vija = build_dfrmp2_part(eo, ev, ixq, qja, **kwargs)
     del ixq, qja
 
     axq = util.ao2mo_df(eri_mo, cv, eye)
-    axq = _reshape_internal(axq, (-1, nvir*nphys), (0,1), (nvir, nphys, -1))
+    axq = util.reshape_internal(axq, (-1, nvir*nphys), (0,1), (nvir, nphys, -1))
     qbi = util.ao2mo_df(eri_mo, cv, co)
     eabi, vabi = build_dfrmp2_part(ev, eo, axq, qbi, **kwargs)
     del axq, qbi
@@ -271,7 +271,7 @@ def build_dfrmp2_part_direct(eo, ev, ixq, qja, wtol=1e-12, ss_factor=1.0, os_fac
         qa = qja[:,i*nvir:(i+1)*nvir]
 
         xja = np.dot(ixq[:i*nphys].conj(), qa)
-        xja = _reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
+        xja = util.reshape_internal(xja, (i, nphys, nvir), (0,1), (nphys, i*nvir))
         xia = np.dot(xq.conj(), qja[:,:i*nvir]).reshape((nphys, -1))
         xa = np.dot(xq.conj(), qa)
 
@@ -387,7 +387,7 @@ def build_dfrmp2_part_se_direct(eo, ev, ixq, qja, grid, chempot=0.0, ordering='f
 
         vi = np.dot(ixq[i*nphys:(i+1)*nphys].conj(), qja).reshape((nphys, -1))
         vip = np.dot(ixq.conj(), qja[:,i*nvir:(i+1)*nvir])
-        vip = _reshape_internal(vip, (nocc, nphys, -1), (0,1), (nphys, -1))
+        vip = util.reshape_internal(vip, (nocc, nphys, -1), (0,1), (nphys, -1))
 
         di = 1.0 / util.outer_sum([w, -ei + get_s(ei) * grid.eta * 1.0j])
 

@@ -1,6 +1,6 @@
-''' Class to perform DF-RAGF2(None,0) with efficient MPI parallel
-    algorithms. Most of this code will remain self-contained for
-    the sake of optimisation.
+''' Class to perform DF-RAGF2(None,0) with efficient algorithms. 
+    Most of this code will remain self-contained for the sake of 
+    optimisation.
 '''
 
 import numpy as np
@@ -51,9 +51,6 @@ def _set_options(options, **kwargs):
     return options
 
 
-_reshape_internal = lambda x, s1, swap, s2 : \
-                           x.reshape(s1).swapaxes(*swap).reshape(s2)
-
 _fdrv = functools.partial(_ao2mo.libao2mo.AO2MOnr_e2_drv, 
                           _ao2mo.libao2mo.AO2MOtranse2_nr_s2,
                           _ao2mo.libao2mo.AO2MOmmm_bra_nr_s2)
@@ -62,7 +59,7 @@ to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
 
 
 class OptRAGF2(util.AuxMethod):
-    ''' Restricted auxiliary GF2 method for (None,1) and DF integrals.
+    ''' Restricted auxiliary GF2 method for (None,0) and DF integrals.
 
     Parameters
     ----------
@@ -255,7 +252,7 @@ class OptRAGF2(util.AuxMethod):
         for i in range(nocc):
             xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
             xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = _reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+            xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
             eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
             eja = eja.ravel()

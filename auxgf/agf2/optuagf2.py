@@ -20,7 +20,7 @@ from auxgf.agf2 import optragf2
 _set_options = optragf2._set_options
 
 
-_reshape_internal = lambda x, s1, swap, s2 : \
+util.reshape_internal = lambda x, s1, swap, s2 : \
                            x.reshape(s1).swapaxes(*swap).reshape(s2)
 
 _fdrv = functools.partial(_ao2mo.libao2mo.AO2MOnr_e2_drv, 
@@ -31,7 +31,7 @@ to_ptr = lambda m : m.ctypes.data_as(ctypes.c_void_p)
 
 
 class OptUAGF2(util.AuxMethod):
-    ''' Unrestricted auxiliary GF2 method for (None,1) and DF integrals.
+    ''' Unrestricted auxiliary GF2 method for (None,0) and DF integrals.
 
     Parameters
     ----------
@@ -198,7 +198,7 @@ class OptUAGF2(util.AuxMethod):
             for i in range(nocca):
                 xja_aa = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_a, out=buf1)
                 xia_aa = np.dot(ixq_a, qja_a[:,i*nvira:(i+1)*nvira], out=buf2)
-                xia_aa = _reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
+                xia_aa = util.reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
                 xja_ab = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_b, out=buf3)
 
                 eja_aa = util.outer_sum([gf_occ_a.e[i] + gf_occ_a.e, -gf_vir_a.e]).flatten() 
