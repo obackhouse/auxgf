@@ -11,6 +11,7 @@ import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log
+from auxgf.lib import agf2 as libagf2
 #from auxgf.agf2.chempot import minimize, diag_fock_ext
 from auxgf.agf2.fock import fock_loop_rhf
 
@@ -243,25 +244,29 @@ class OptRAGF2(util.AuxMethod):
         ixq = OptRAGF2.ao2mo(eri, gf_occ.v, np.eye(nphys), **syms).T
         qja = OptRAGF2.ao2mo(eri, gf_occ.v, gf_vir.v, **syms)
 
-        vv = np.zeros((nphys, nphys), dtype=types.float64)
-        vev = np.zeros((nphys, nphys), dtype=types.float64)
+        if libagf2._liboptragf2 is not None:
+            vv, vev = libagf2.build_part_loop(ixq, qja, gf_occ, gf_vir, 0, nocc)
 
-        buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
-        buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
+        else:
+            vv = np.zeros((nphys, nphys), dtype=types.float64)
+            vev = np.zeros((nphys, nphys), dtype=types.float64)
 
-        for i in range(nocc):
-            xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
-            xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+            buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
+            buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
 
-            eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
-            eja = eja.ravel()
+            for i in range(nocc):
+                xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
+                xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
+                xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
-            vv = util.dgemm(xja, xja.T, alpha=2, beta=1, c=vv)
-            vv = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=vv)
+                eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
+                eja = eja.ravel()
 
-            vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
-            vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
+                vv = util.dgemm(xja, xja.T, alpha=2, beta=1, c=vv)
+                vv = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=vv)
+
+                vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
+                vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
 
         b = np.linalg.cholesky(vv).T
         b_inv = np.linalg.inv(b)

@@ -11,6 +11,7 @@ import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
+from auxgf.lib import agf2 as libagf2
 #from auxgf.agf2.chempot import minimize, diag_fock_ext
 from auxgf.agf2.fock import fock_loop_rhf
 
@@ -368,19 +369,29 @@ class OptRAGF2(util.AuxMethod):
         buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
         buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
 
-        for i in range(mpi.rank, nocc, mpi.size):
-            xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
-            xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
-            xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
+        if libagf2._liboptragf2 is not None:
+            nocc_per_rank = nocc // mpi.size
+            istart = nocc_per_rank * mpi.rank
+            iend = nocc_per_rank * (mpi.rank+1)
+            if mpi.rank == (mpi.size-1):
+                iend = max(iend, nocc)
 
-            eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
-            eja = eja.ravel()
+            vv, vev = libagf2.build_part_loop(ixq, qja, gf_occ, gf_vir, istart, iend, vv=vv, vev=vev)
 
-            vv = util.dgemm(xja, xja.T, alpha=2, beta=1, c=vv)
-            vv = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=vv)
+        else:
+            for i in range(mpi.rank, nocc, mpi.size):
+                xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
+                xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
+                xia = util.reshape_internal(xia, (nocc, nphys, nvir), (0,1), (nphys, nocc*nvir))
 
-            vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
-            vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
+                eja = util.outer_sum([gf_occ.e[i] + gf_occ.e, -gf_vir.e])
+                eja = eja.ravel()
+
+                vv = util.dgemm(xja, xja.T, alpha=2, beta=1, c=vv)
+                vv = util.dgemm(xja, xia.T, alpha=-1, beta=1, c=vv)
+
+                vev = util.dgemm(xja * eja[None], xja.T, alpha=2, beta=1, c=vev)
+                vev = util.dgemm(xja * eja[None], xia.T, alpha=-1, beta=1, c=vev)
 
         vv = mpi.reduce(vv)
         vev = mpi.reduce(vev)
