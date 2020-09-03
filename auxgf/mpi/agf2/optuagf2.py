@@ -469,7 +469,7 @@ class OptUAGF2(util.AuxMethod):
 
                 self.converged = e_dif < etol
 
-            if checkpoint:
+            if checkpoint and mpi.rank == 0:
                 np.savetxt('rdm1_alph_chk.dat', self.rdm1[0])
                 np.savetxt('rdm1_beta_chk.dat', self.rdm1[1])
                 self.se[0].save('se_alph_chk.pickle')

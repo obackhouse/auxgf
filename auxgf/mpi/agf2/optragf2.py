@@ -568,7 +568,7 @@ class OptRAGF2(util.AuxMethod):
 
                 self.converged = e_dif < etol
 
-            if checkpoint:
+            if checkpoint and mpi.rank == 0:
                 np.savetxt('rdm1_chk.dat', self.rdm1)
                 self.se.save('se_chk.pickle')
 
