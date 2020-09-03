@@ -452,6 +452,7 @@ class OptUAGF2(util.AuxMethod):
     def run(self):
         maxiter = self.options['maxiter']
         etol = self.options['etol']
+        checkpoint = self.options['checkpoint']
 
         for self.iteration in range(1, maxiter+1):
             log.iteration(self.iteration, self.verbose)
@@ -467,6 +468,12 @@ class OptUAGF2(util.AuxMethod):
                     break
 
                 self.converged = e_dif < etol
+
+            if checkpoint:
+                np.savetxt('rdm1_alph_chk.dat', self.rdm1[0])
+                np.savetxt('rdm1_beta_chk.dat', self.rdm1[1])
+                self.se[0].save('se_alph_chk.pickle')
+                self.se[1].save('se_beta_chk.pickle')
 
         if self.converged:
             log.write('\nAuxiliary GF2 converged after %d iterations.\n'

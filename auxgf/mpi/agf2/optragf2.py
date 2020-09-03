@@ -33,6 +33,7 @@ def _set_options(options, **kwargs):
                      'maxblk' : 120,
                      'ss_factor' : 1.0,
                      'os_factor' : 1.0,
+                     'checkpoint' : True,
     })
 
     for key,val in kwargs.items():
@@ -550,6 +551,7 @@ class OptRAGF2(util.AuxMethod):
     def run(self):
         maxiter = self.options['maxiter']
         etol = self.options['etol']
+        checkpoint = self.options['checkpoint']
 
         for self.iteration in range(1, maxiter+1):
             log.iteration(self.iteration, self.verbose)
@@ -565,6 +567,10 @@ class OptRAGF2(util.AuxMethod):
                     break
 
                 self.converged = e_dif < etol
+
+            if checkpoint:
+                np.savetxt('rdm1_chk.dat', self.rdm1)
+                self.se.save('se_chk.pickle')
 
         if self.converged:
             log.write('\nAuxiliary GF2 converged after %d iterations.\n' 
