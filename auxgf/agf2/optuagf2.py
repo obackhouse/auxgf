@@ -6,13 +6,12 @@
 import numpy as np
 from pyscf import lib
 from pyscf.ao2mo import _ao2mo
-from scipy.optimize import minimize
 import functools
 import ctypes
 
 from auxgf import util, aux
 from auxgf.util import types, log
-from auxgf.agf2.chempot import minimize, diag_fock_ext
+from auxgf.lib import agf2 as libagf2
 from auxgf.agf2.fock import fock_loop_uhf
 from auxgf.agf2 import optragf2
 
@@ -181,36 +180,40 @@ class OptUAGF2(util.AuxMethod):
         qja = (qja_a, qja_b)
 
         def _build_part(s=slice(None)):
-            nocca, noccb = nocc[s]
-            nvira, nvirb = nvir[s]
-            ixq_a, ixq_b = ixq[s]
-            qja_a, qja_b = qja[s]
-            gf_occ_a, gf_occ_b = gf_occ[s]
-            gf_vir_a, gf_vir_b = gf_vir[s]
-
             vv = np.zeros((nphys, nphys), dtype=types.float64)
             vev = np.zeros((nphys, nphys), dtype=types.float64)
 
-            buf1 = np.zeros((nphys, nocca*nvira), dtype=types.float64)
-            buf2 = np.zeros((nocca*nphys, nvira), dtype=types.float64)
-            buf3 = np.zeros((nphys, noccb*nvirb), dtype=types.float64)
+            if libagf2._libagf2 is not None:
+                vv, vev = libagf2.build_part_loop_uhf(ixq[s], qja[s], gf_occ[s], gf_vir[s], 0, nocc[s][0], vv=vv, vev=vev)
 
-            for i in range(nocca):
-                xja_aa = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_a, out=buf1)
-                xia_aa = np.dot(ixq_a, qja_a[:,i*nvira:(i+1)*nvira], out=buf2)
-                xia_aa = util.reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
-                xja_ab = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_b, out=buf3)
+            else:
+                nocca, noccb = nocc[s]
+                nvira, nvirb = nvir[s]
+                ixq_a, ixq_b = ixq[s]
+                qja_a, qja_b = qja[s]
+                gf_occ_a, gf_occ_b = gf_occ[s]
+                gf_vir_a, gf_vir_b = gf_vir[s]
 
-                eja_aa = util.outer_sum([gf_occ_a.e[i] + gf_occ_a.e, -gf_vir_a.e]).flatten() 
-                eja_ab = util.outer_sum([gf_occ_a.e[i] + gf_occ_b.e, -gf_vir_b.e]).flatten()
+                buf1 = np.zeros((nphys, nocca*nvira), dtype=types.float64)
+                buf2 = np.zeros((nocca*nphys, nvira), dtype=types.float64)
+                buf3 = np.zeros((nphys, noccb*nvirb), dtype=types.float64)
 
-                vv = util.dgemm(xja_aa, xja_aa.T, alpha=1, beta=1, c=vv)
-                vv = util.dgemm(xja_aa, xia_aa.T, alpha=-1, beta=1, c=vv)
-                vv = util.dgemm(xja_ab, xja_ab.T, alpha=1, beta=1, c=vv)
+                for i in range(nocca):
+                    xja_aa = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_a, out=buf1)
+                    xia_aa = np.dot(ixq_a, qja_a[:,i*nvira:(i+1)*nvira], out=buf2)
+                    xia_aa = util.reshape_internal(xia_aa, (nocca, nphys, nvira), (0,1), (nphys, nocca*nvira))
+                    xja_ab = np.dot(ixq_a[i*nphys:(i+1)*nphys], qja_b, out=buf3)
 
-                vev = util.dgemm(xja_aa * eja_aa[None], xja_aa.T, alpha=1, beta=1, c=vev)
-                vev = util.dgemm(xja_aa * eja_aa[None], xia_aa.T, alpha=-1, beta=1, c=vev)
-                vev = util.dgemm(xja_ab * eja_ab[None], xja_ab.T, alpha=1, beta=1, c=vev)
+                    eja_aa = util.outer_sum([gf_occ_a.e[i] + gf_occ_a.e, -gf_vir_a.e]).flatten() 
+                    eja_ab = util.outer_sum([gf_occ_a.e[i] + gf_occ_b.e, -gf_vir_b.e]).flatten()
+
+                    vv = util.dgemm(xja_aa, xja_aa.T, alpha=1, beta=1, c=vv)
+                    vv = util.dgemm(xja_aa, xia_aa.T, alpha=-1, beta=1, c=vv)
+                    vv = util.dgemm(xja_ab, xja_ab.T, alpha=1, beta=1, c=vv)
+
+                    vev = util.dgemm(xja_aa * eja_aa[None], xja_aa.T, alpha=1, beta=1, c=vev)
+                    vev = util.dgemm(xja_aa * eja_aa[None], xia_aa.T, alpha=-1, beta=1, c=vev)
+                    vev = util.dgemm(xja_ab * eja_ab[None], xja_ab.T, alpha=1, beta=1, c=vev)
 
             b = np.linalg.cholesky(vv).T
             b_inv = np.linalg.inv(b)
@@ -220,7 +223,7 @@ class OptUAGF2(util.AuxMethod):
             e, c = util.eigh(m)
             c = np.dot(b.T, c[:nphys])
 
-            se = gf_occ_a.new(e, c)
+            se = gf_occ[s][0].new(e, c)
             
             return se
 

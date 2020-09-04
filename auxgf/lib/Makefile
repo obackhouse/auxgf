@@ -18,5 +18,8 @@ clean_agf2:
 optragf2:
 	$(CC) $(CFLAGS) $(OFLAGS) -c $(CDR)/libagf2/optragf2.c -o $(CDR)/libagf2/optragf2.o
 
-agf2: optragf2
-	$(CC) $(CFLAGS) $(SOFLAGS) $(CDR)/libagf2/optragf2.o -o $(CDR)/libagf2/agf2.so
+optuagf2:
+	$(CC) $(CFLAGS) $(OFLAGS) -c $(CDR)/libagf2/optuagf2.c -o $(CDR)/libagf2/optuagf2.o
+
+agf2: optragf2 optuagf2
+	$(CC) $(CFLAGS) $(SOFLAGS) $(CDR)/libagf2/optragf2.o $(CDR)/libagf2/optuagf2.o -o $(CDR)/libagf2/agf2.so

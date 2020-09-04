@@ -29,18 +29,18 @@ extern void dgemm_(char *transa,
                    uint32_t *ldc);
 
 
-void build_part_loop(double *ixq,
-                     double *qja,
-                     double *ei,
-                     double *ea,
-                     uint32_t nphys,
-                     uint32_t nocc,
-                     uint32_t nvir,
-                     uint32_t naux,
-                     uint32_t istart,
-                     uint32_t iend,
-                     double *vv,
-                     double *vev)
+void build_part_loop_rhf(double *ixq,
+                         double *qja,
+                         double *ei,
+                         double *ea,
+                         uint32_t nphys,
+                         uint32_t nocc,
+                         uint32_t nvir,
+                         uint32_t naux,
+                         uint32_t istart,
+                         uint32_t iend,
+                         double *vv,
+                         double *vev)
 {
     /*
      *  Compute the VV^\dagger and VeV^\dagger matrices for a single 
@@ -74,9 +74,9 @@ void build_part_loop(double *ixq,
      *  Returns
      *  -------
      *  vv : double array
-     *      output array for v . v^\dagger (nphys * nphys)
+     *      output array for V . V^\dagger (nphys * nphys)
      *  vev : double array
-     *      output array for v . e . v^\dagger (nphys * nphys)
+     *      output array for V . e . V^\dagger (nphys * nphys)
      */
 
     // Setup timer if required
@@ -223,8 +223,8 @@ void build_part_loop(double *ixq,
 #endif
 
         // Build the exchange contribution to the vv matrix
-        a = &(xja[0]);
-        b = &(xia[0]);
+        a = &(xia[0]);
+        b = &(xja[0]);
         c = &(vv_thread[0]);
         transa = 'T';
         transb = 'N';

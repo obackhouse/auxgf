@@ -12,7 +12,6 @@ import ctypes
 from auxgf import util, aux
 from auxgf.util import types, log
 from auxgf.lib import agf2 as libagf2
-#from auxgf.agf2.chempot import minimize, diag_fock_ext
 from auxgf.agf2.fock import fock_loop_rhf
 
 
@@ -244,13 +243,13 @@ class OptRAGF2(util.AuxMethod):
         ixq = OptRAGF2.ao2mo(eri, gf_occ.v, np.eye(nphys), **syms).T
         qja = OptRAGF2.ao2mo(eri, gf_occ.v, gf_vir.v, **syms)
 
-        if libagf2._liboptragf2 is not None:
-            vv, vev = libagf2.build_part_loop(ixq, qja, gf_occ, gf_vir, 0, nocc)
+        vv = np.zeros((nphys, nphys), dtype=types.float64)
+        vev = np.zeros((nphys, nphys), dtype=types.float64)
+
+        if libagf2._libagf2 is not None:
+            vv, vev = libagf2.build_part_loop_rhf(ixq, qja, gf_occ, gf_vir, 0, nocc, vv=vv, vev=vev)
 
         else:
-            vv = np.zeros((nphys, nphys), dtype=types.float64)
-            vev = np.zeros((nphys, nphys), dtype=types.float64)
-
             buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
             buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
 

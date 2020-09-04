@@ -12,7 +12,6 @@ import ctypes
 from auxgf import util, aux
 from auxgf.util import types, log, mpi
 from auxgf.lib import agf2 as libagf2
-#from auxgf.agf2.chempot import minimize, diag_fock_ext
 from auxgf.agf2.fock import fock_loop_rhf
 
 
@@ -33,7 +32,7 @@ def _set_options(options, **kwargs):
                      'maxblk' : 120,
                      'ss_factor' : 1.0,
                      'os_factor' : 1.0,
-                     'checkpoint' : True,
+                     'checkpoint' : False,
     })
 
     for key,val in kwargs.items():
@@ -367,19 +366,19 @@ class OptRAGF2(util.AuxMethod):
         vv = np.zeros((nphys, nphys), dtype=types.float64)
         vev = np.zeros((nphys, nphys), dtype=types.float64)
 
-        buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
-        buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
-
-        if libagf2._liboptragf2 is not None:
+        if libagf2._libagf2 is not None:
             nocc_per_rank = nocc // mpi.size
             istart = nocc_per_rank * mpi.rank
             iend = nocc_per_rank * (mpi.rank+1)
             if mpi.rank == (mpi.size-1):
                 iend = max(iend, nocc)
 
-            vv, vev = libagf2.build_part_loop(ixq, qja, gf_occ, gf_vir, istart, iend, vv=vv, vev=vev)
+            vv, vev = libagf2.build_part_loop_rhf(ixq, qja, gf_occ, gf_vir, istart, iend, vv=vv, vev=vev)
 
         else:
+            buf1 = np.zeros((nphys, nocc*nvir), dtype=types.float64)
+            buf2 = np.zeros((nocc*nphys, nvir), dtype=types.float64)
+
             for i in range(mpi.rank, nocc, mpi.size):
                 xja = np.dot(ixq[i*nphys:(i+1)*nphys], qja, out=buf1)
                 xia = np.dot(ixq, qja[:,i*nvir:(i+1)*nvir], out=buf2)
