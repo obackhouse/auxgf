@@ -220,6 +220,6 @@ def minimize(se, fock, nelec, occupancy=2.0, method='newton', buf=None, x0=0.0, 
     opt = f(objective, args=args, **kwargs)
 
     se._ener -= opt.x
-    se.chempot = util.chempot.find_chempot(se.nphys, nelec, h=se.eig(fock))
+    se.chempot = util.chempot.find_chempot(se.nphys, nelec, h=se.eig(fock))[0]
 
     return se, opt
