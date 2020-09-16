@@ -121,6 +121,7 @@ def fock_loop_rhf(se, hf, rdm, **kwargs):
 
         for niter in range(1, maxiter+1):
             w, v, se.chempot, error = diag_fock_ext(se, fock, hf.nelec)
+            w, v = se.eig(fock)
 
             c_occ = v[:nphys, w < se.chempot]
             rdm[act,act] = np.dot(c_occ, c_occ.T) * 2
@@ -237,6 +238,9 @@ def fock_loop_uhf(se, hf, rdm, **kwargs):
             w_a, v_a, se[0].chempot, error_a = diag_fock_ext(se[0], fock[0], hf.nalph, occupancy=1)
             w_b, v_b, se[1].chempot, error_b = diag_fock_ext(se[1], fock[1], hf.nbeta, occupancy=1)
             error = (error_a, error_b)
+
+            w_a, v_a = se[0].eig(fock[0])
+            w_b, v_b = se[1].eig(fock[1])
 
             c_occ_a = v_a[:nphys, w_a < se[0].chempot]
             c_occ_b = v_b[:nphys, w_b < se[1].chempot]
