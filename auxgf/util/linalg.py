@@ -58,6 +58,13 @@ qr = np.linalg.qr
 eigvalsh = np.linalg.eigvalsh
 
 
+''' Pattern to swap axes in arbitrarily flattened arrays.
+'''
+#TODO: optimise this?
+
+reshape_internal = lambda x, s1, swap, s2: x.reshape(s1).swapaxes(*swap).reshape(s2)
+
+
 def _reorder_fortran(a, trans_a=False):
     ''' Reorders array into Fortran memory contiguity.
     '''
@@ -558,7 +565,7 @@ def batch_eigh(arrays):
     '''
 
     arrays = [np.asarray(array) for array in arrays]
-    arrays = np.asarray(arrays)
+    arrays = np.asarray(arrays, dtype=object)
 
     num = len(arrays)
     shapes = np.array([x.shape[0] for x in arrays])
@@ -586,8 +593,8 @@ def batch_eigh(arrays):
         ws += list(w)
         vs += list(v)
 
-    ws = np.array(ws)[inds]
-    vs = np.array(vs)[inds]
+    ws = np.array(ws, dtype=object)[inds]
+    vs = np.array(vs, dtype=object)[inds]
 
     return ws, vs
 
