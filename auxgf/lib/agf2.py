@@ -15,9 +15,10 @@ def _load(name):
         path = os.path.join(cwd, 'lib%s/%s.so' % (name, name))
         clib = np.ctypeslib.load_library(name, path)
 
-    except OSError:
+    except OSError as e:
         clib = None
-        #raise RuntimeError('Cannot locate %s C library.' % name)
+        print(e)
+        raise RuntimeError('Cannot locate %s C library.' % name)
 
     return clib
 

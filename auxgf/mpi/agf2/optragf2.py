@@ -367,11 +367,9 @@ class OptRAGF2(util.AuxMethod):
         vev = np.zeros((nphys, nphys), dtype=types.float64)
 
         if libagf2._libagf2 is not None:
-            nocc_per_rank = nocc // mpi.size
-            istart = nocc_per_rank * mpi.rank
-            iend = nocc_per_rank * (mpi.rank+1)
-            if mpi.rank == (mpi.size-1):
-                iend = max(iend, nocc)
+            parts = mpi.split_int(nocc)
+            istart = sum(parts[:mpi.rank])
+            iend = sum(parts[:(mpi.rank+1)])
 
             vv, vev = libagf2.build_part_loop_rhf(ixq, qja, gf_occ, gf_vir, istart, iend, vv=vv, vev=vev)
 

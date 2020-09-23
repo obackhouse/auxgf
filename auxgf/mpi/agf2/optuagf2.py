@@ -259,11 +259,9 @@ class OptUAGF2(util.AuxMethod):
             vev = np.zeros((nphys, nphys), dtype=types.float64)
 
             if libagf2._libagf2 is not None:
-                nocc_per_rank = nocc[s][0] // mpi.size
-                istart = nocc_per_rank * mpi.rank
-                iend = nocc_per_rank * (mpi.rank+1)
-                if mpi.rank == (mpi.size-1):
-                    iend = max(iend, nocc[s][0])
+                parts = mpi.split_int(nocc[s][0])
+                istart = sum(parts[:mpi.rank])
+                iend = sum(parts[:(mpi.rank+1)])
 
                 vv, vev = libagf2.build_part_loop_uhf(ixq[s], qja[s], gf_occ[s], gf_vir[s], istart, iend, vv=vv, vev=vev)
 
